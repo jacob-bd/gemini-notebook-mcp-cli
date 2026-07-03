@@ -84,7 +84,13 @@ class TestCheckAuthAPI:
             assert result.details.get("csrf_token") == "csrf123abc"
 
     def test_check_auth_live_true_detects_expired_redirect(self, tmp_path, monkeypatch):
-        """The only reliable way to know cookies are dead is seeing the redirect."""
+        """Dead cookies: homepage redirects AND the authoritative RPC rejects them.
+
+        A homepage redirect alone is no longer trusted (Google bounces live
+        sessions there too); "expired" requires the RPC probe to also fail.
+        """
+        from notebooklm_tools.core.exceptions import AuthenticationError
+
         monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
 
         mgr = AuthManager("default")
@@ -96,13 +102,21 @@ class TestCheckAuthAPI:
                 "APISID": "dead",
                 "SAPISID": "dead",
             },
+            csrf_token="stale123",  # present on disk, but rejected by the API
+            session_id="sess123",
             email="test@example.com",
         )
 
-        with patch("httpx.Client") as MockClient:
+        with (
+            patch("httpx.Client") as MockClient,
+            patch(
+                "notebooklm_tools.core.client.NotebookLMClient.list_notebooks",
+                side_effect=AuthenticationError("dead"),
+            ),
+        ):
             client = MockClient.return_value.__enter__.return_value
 
-            # Simulate Google login redirect (the authoritative failure mode)
+            # Simulate Google login redirect
             req = httpx.Request("GET", "https://accounts.google.com/ServiceLogin")
             resp = httpx.Response(200, request=req, text="login page here")
             client.get.return_value = resp
@@ -112,6 +126,65 @@ class TestCheckAuthAPI:
             assert result.valid is False
             assert result.reason == "expired"
             assert result.live is True
+
+    def test_check_auth_live_true_redirect_but_rpc_alive_is_valid(self, tmp_path, monkeypatch):
+        """Regression: homepage redirects to login, but the batchexecute RPC
+        accepts the same cookies. This is the false-negative that made
+        `nlm login --check` wrongly report "expired" for a working account.
+        The RPC is authoritative, so the verdict must be valid.
+        """
+        monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+
+        mgr = AuthManager("default")
+        mgr.save_profile(
+            cookies={"SID": "x", "HSID": "x", "SSID": "x", "APISID": "x", "SAPISID": "x"},
+            csrf_token="csrf123",
+            session_id="sess123",
+            email="test@example.com",
+        )
+
+        with (
+            patch("httpx.Client") as MockClient,
+            patch(
+                "notebooklm_tools.core.client.NotebookLMClient.list_notebooks",
+                return_value=[],
+            ),
+        ):
+            client = MockClient.return_value.__enter__.return_value
+            req = httpx.Request("GET", "https://accounts.google.com/ServiceLogin")
+            client.get.return_value = httpx.Response(200, request=req, text="login page")
+
+            result = check_auth(live=True)
+
+            assert result.valid is True
+            assert result.reason is None
+            assert result.live is True
+
+    def test_check_auth_live_true_non_redirect_non_200_reports_http_error(
+        self, tmp_path, monkeypatch
+    ):
+        """Homepage answers with a non-200 that is NOT a login redirect (e.g. a
+        500 from Google) -> report http_<status> without an RPC probe. Pins the
+        branch split introduced when redirect stopped implying expiry.
+        """
+        monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+
+        mgr = AuthManager("default")
+        mgr.save_profile(
+            cookies={"SID": "x", "HSID": "x", "SSID": "x", "APISID": "x", "SAPISID": "x"},
+            email="test@example.com",
+        )
+
+        with patch("httpx.Client") as MockClient:
+            client = MockClient.return_value.__enter__.return_value
+            req = httpx.Request("GET", "https://notebooklm.google.com/")
+            client.get.return_value = httpx.Response(500, request=req, text="oops")
+
+            result = check_auth(live=True)
+
+        assert result.valid is False
+        assert result.reason == "http_500"
+        assert result.live is True
 
     def test_check_auth_live_true_degrades_on_read_timeout(self, tmp_path, monkeypatch):
         """Regression for #243: a real httpx.ReadTimeout from the homepage probe

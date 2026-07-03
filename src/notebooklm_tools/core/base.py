@@ -473,14 +473,12 @@ class BaseClient:
 
     def _get_cookie_header(self) -> str:
         """Get Cookie header string (backward compatibility)."""
-        if isinstance(self.cookies, list):
-            # Flatten to simple dict for header
-            simple_cookies = {
-                c["name"]: c["value"] for c in self.cookies if "name" in c and "value" in c
-            }
-            return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
-        else:
-            return "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+        from notebooklm_tools.utils.browser import flatten_cookies
+
+        # Domain-aware flatten: prefer .google.com when Chrome exports the same
+        # cookie name across .youtube.com / .google.com.vn / etc.
+        simple_cookies = flatten_cookies(self.cookies)
+        return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
 
     # =========================================================================
     # HTTP Client Management

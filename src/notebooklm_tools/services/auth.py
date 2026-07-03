@@ -474,11 +474,11 @@ class AuthHealthChecker:
 
     @staticmethod
     def _cookies_to_dict(profile: Any) -> dict[str, str]:
-        """Convert profile cookies to a plain dict."""
-        if isinstance(profile.cookies, list):
-            return {c["name"]: c["value"] for c in profile.cookies if "name" in c and "value" in c}
-        if isinstance(profile.cookies, dict):
-            return profile.cookies
+        """Convert profile cookies to a plain dict (domain-aware: prefer .google.com)."""
+        from notebooklm_tools.utils.browser import flatten_cookies
+
+        if isinstance(profile.cookies, (list, dict)):
+            return flatten_cookies(profile.cookies)
         return {}
 
     @staticmethod

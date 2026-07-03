@@ -29,7 +29,7 @@ class AuthTokens:
     they can be auto-extracted from the NotebookLM page when needed.
     """
 
-    cookies: dict[str, str]
+    cookies: "dict[str, str] | list[dict]"  # list[dict] preserves per-domain values
     csrf_token: str = ""  # Optional - auto-extracted from page
     session_id: str = ""  # Optional - auto-extracted from page
     build_label: str = ""  # Optional - auto-extracted from page (cfb2h key)
@@ -66,7 +66,9 @@ class AuthTokens:
     @property
     def cookie_header(self) -> str:
         """Get cookies as a header string."""
-        return "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+        from notebooklm_tools.utils.browser import cookies_to_header, flatten_cookies
+
+        return cookies_to_header(flatten_cookies(self.cookies))
 
 
 def get_cache_path() -> Path:
@@ -272,9 +274,12 @@ def parse_cookies_from_chrome_format(cookies_list: list[dict]) -> dict[str, str]
 REQUIRED_COOKIES = ["SID", "HSID", "SSID", "APISID", "SAPISID"]
 
 
-def validate_cookies(cookies: dict[str, str]) -> bool:
-    """Check if required cookies are present."""
-    return all(required in cookies for required in REQUIRED_COOKIES)
+def validate_cookies(cookies: "dict[str, str] | list[dict]") -> bool:
+    """Check if required cookies are present (accepts flat dict or Chrome list)."""
+    from notebooklm_tools.utils.browser import flatten_cookies
+
+    flat = flatten_cookies(cookies)
+    return all(required in flat for required in REQUIRED_COOKIES)
 
 
 # =============================================================================
@@ -500,11 +505,9 @@ class AuthManager:
 
     def get_cookies(self) -> dict[str, str]:
         """Get cookies for the current profile as simple dict."""
-        profile = self.load_profile()
-        if isinstance(profile.cookies, list):
-            # Convert list[dict] to dict[str, str]
-            return {c["name"]: c["value"] for c in profile.cookies if "name" in c and "value" in c}
-        return profile.cookies
+        from notebooklm_tools.utils.browser import flatten_cookies
+
+        return flatten_cookies(self.load_profile().cookies)
 
     def get_raw_cookies(self) -> list[dict] | dict[str, str]:
         """Get raw cookies (list or dict)."""
@@ -519,11 +522,11 @@ class AuthManager:
 
     def get_headers(self) -> dict[str, str]:
         """Get headers for NotebookLM API requests."""
-        from notebooklm_tools.utils.browser import cookies_to_header
+        from notebooklm_tools.utils.browser import cookies_to_header, flatten_cookies
 
         profile = self.load_profile()
         headers = {
-            "Cookie": cookies_to_header(profile.cookies),
+            "Cookie": cookies_to_header(flatten_cookies(profile.cookies)),
             "Content-Type": "application/x-www-form-urlencoded",
             "Origin": get_base_url(),
             "Referer": f"{get_base_url()}/",
@@ -627,12 +630,9 @@ def _fetch_notebooklm_homepage(
     """
     import httpx
 
-    from notebooklm_tools.utils.browser import cookies_to_header
+    from notebooklm_tools.utils.browser import cookies_to_header, flatten_cookies
 
-    if isinstance(cookies, list):
-        cookie_dict = {c["name"]: c["value"] for c in cookies if "name" in c and "value" in c}
-    else:
-        cookie_dict = cookies
+    cookie_dict = flatten_cookies(cookies)
 
     headers = _PAGE_FETCH_HEADERS.copy()
 
@@ -691,11 +691,10 @@ def check_auth(
             profile=profile,
         )
 
-    # Convert to simple dict for the fetch helper
-    if isinstance(p.cookies, list):
-        cookie_dict = {c["name"]: c["value"] for c in p.cookies if "name" in c and "value" in c}
-    else:
-        cookie_dict = p.cookies
+    # Convert to simple dict for the fetch helper (domain-aware: prefer .google.com)
+    from notebooklm_tools.utils.browser import flatten_cookies
+
+    cookie_dict = flatten_cookies(p.cookies)
 
     if not cookie_dict:
         return AuthCheckResult(valid=False, reason="no_tokens", live=live, profile=profile)

@@ -117,14 +117,17 @@ def parse_timestamp(ts_array: list | None) -> str | None:
 
 def extract_cookies_from_chrome_export(cookie_data: str | list[dict]) -> dict[str, str]:
     """Extract cookies from Chrome export format (JSON) or header string."""
+    from notebooklm_tools.utils.browser import flatten_cookies
+
     if isinstance(cookie_data, list):
-        return {c.get("name"): c.get("value") for c in cookie_data if "name" in c and "value" in c}
+        # Chrome export carries domains; prefer .google.com on name collisions.
+        return flatten_cookies(cookie_data)
     if not isinstance(cookie_data, str):
         return {}
     try:
         data = json.loads(cookie_data)
         if isinstance(data, list):
-            return {c.get("name"): c.get("value") for c in data if "name" in c and "value" in c}
+            return flatten_cookies(data)
         if isinstance(data, dict):
             return {str(k): str(v) for k, v in data.items()}
     except json.JSONDecodeError:

@@ -847,6 +847,8 @@ class BaseClient:
             )
 
         client = self._get_client()
+        if not _retry and _server_retry == 0:
+            self._maybe_rotate_cookies(client)
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
 
@@ -1154,6 +1156,34 @@ class BaseClient:
         except Exception as e:
             # Non-critical: caching is an optimization, but log at debug level
             logger.debug(f"Failed to update auth token cache: {e}")
+
+    def _maybe_rotate_cookies(self, client: httpx.Client) -> None:
+        """Best-effort cookie rotation before RPC calls.
+
+        Calls Google's RotateCookies endpoint to keep *PSIDTS cookies fresh.
+        Rate-limited to once per 60s by the cookie_rotation module.
+        Non-fatal: failures are logged at debug level and the RPC proceeds.
+        """
+        if not self.cookies:
+            return
+
+        from .cookie_rotation import rotate_google_cookies, snapshot_cookie_input
+
+        result = rotate_google_cookies(client, timeout=3.0)
+        if not result.success:
+            return
+
+        with self._state_lock:
+            self.cookies = snapshot_cookie_input(self.cookies, client.cookies)
+        try:
+            from .auth import load_cached_tokens, save_tokens_to_cache
+
+            cached = load_cached_tokens()
+            if cached:
+                cached.cookies = self.cookies
+                save_tokens_to_cache(cached, silent=True)
+        except Exception as e:
+            logger.debug("Failed to persist rotated cookies: %s", e)
 
     def _try_reload_or_headless_auth(self) -> bool:
         """Try to recover authentication by reloading from disk or running headless auth.

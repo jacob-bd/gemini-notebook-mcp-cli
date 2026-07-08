@@ -121,10 +121,20 @@ def get_chrome_profile_dir(profile_name: str = "default") -> Path:
     Each NLM profile gets its own Chrome user-data-dir so different
     Google accounts can be used for different profiles.
 
+    ``NOTEBOOKLM_CHROME_PROFILE_DIR`` overrides this with a fixed,
+    already-authenticated Chrome user-data-dir (e.g. one you set up and
+    logged into NotebookLM by hand), instead of the tool's self-managed
+    profile directory.
+
     For backward compatibility, the "default" profile uses the old
     chrome-profile/ directory if it exists, keeping single-profile
     users' experience unchanged.
     """
+    if env_dir := os.environ.get("NOTEBOOKLM_CHROME_PROFILE_DIR"):
+        chrome_dir = Path(env_dir)
+        safe_mkdir(chrome_dir, parents=True)
+        return chrome_dir
+
     storage = get_storage_dir()
 
     # Backward compatibility: use old location for default profile if it exists

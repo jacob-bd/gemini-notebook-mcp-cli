@@ -79,6 +79,7 @@ save_auth_tokens(cookies=<cookie_header>)
 | `NOTEBOOKLM_BL` | No | Override for build label / bl URL param (auto-extracted from page) |
 | `NOTEBOOKLM_HL` | No | Interface language and default artifact language (default: `en`) |
 | `NOTEBOOKLM_RPC_OVERRIDES` | No | Hot-patch rotated batchexecute RPC method IDs without a release. JSON object mapping `BaseClient` RPC attribute names to new IDs, e.g. `{"RPC_LIST_NOTEBOOKS": "abc123"}` |
+| `NOTEBOOKLM_CHROME_PROFILE_DIR` | No | Absolute path to a fixed Chrome user-data-dir to reuse for browser-based auth (interactive login and headless refresh), instead of the tool's self-managed `chrome-profile(s)/` directory. Useful when you already have a Chrome profile logged into NotebookLM elsewhere. |
 
 ### Resilience: rotated RPC IDs
 

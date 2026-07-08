@@ -12,6 +12,7 @@ from notebooklm_tools.core.cookie_rotation import (
 
 
 def test_rotate_google_cookies_posts_expected_request(monkeypatch):
+    monkeypatch.delenv(DISABLE_ROTATE_COOKIES_ENV, raising=False)
     seen: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:

@@ -97,12 +97,15 @@ def save_auth_tokens(
     session_id: str = "",
     request_body: str = "",
     request_url: str = "",
+    confirm: bool = False,
 ) -> ResultDict:
     """Save NotebookLM cookies (FALLBACK method - try `nlm login` first!).
 
     IMPORTANT FOR AI ASSISTANTS:
     - First, run `nlm login` via Bash/terminal (automated, preferred)
     - Only use this tool if the automated CLI fails
+    - This tool requires confirm=True to proceed — do not set confirm=True
+      unless the user has explicitly approved saving auth tokens
 
     Args:
         cookies: Cookie header from Chrome DevTools (only needed if CLI fails)
@@ -110,7 +113,17 @@ def save_auth_tokens(
         session_id: Deprecated - auto-extracted
         request_body: Optional - contains CSRF if extracting manually
         request_url: Optional - contains session ID if extracting manually
+        confirm: Must be True to proceed — prevents automatic cookie overwrites
+            by LLM agents without user approval
     """
+    if not confirm:
+        return error_result(
+            "Saving auth tokens requires user confirmation. "
+            "Set confirm=True to proceed. This protects against "
+            "unintended session hijacking via prompt injection.",
+            status="confirmation_required",
+        )
+
     try:
         from notebooklm_tools.services.auth import (
             AuthTokens,
@@ -186,7 +199,8 @@ def save_auth_tokens(
         return {
             "status": "success",
             "message": f"Saved {len(cookie_dict)} essential cookies (filtered from {len(all_cookies)}). {token_msg}",
-            "cache_path": str(get_cache_path()),
+            # Note: cache_path intentionally omitted from response to prevent
+            # path disclosure that could aid cookie exfiltration.
             "extracted_csrf": bool(csrf_token),
             "extracted_session_id": bool(session_id),
         }

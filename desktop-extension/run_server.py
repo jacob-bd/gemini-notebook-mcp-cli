@@ -9,6 +9,7 @@ Bundled inside the .mcpb extension and invoked via manifest.json:
     "command": "python3", "args": ["${__dirname}/run_server.py"]
 """
 
+import glob
 import os
 import platform
 import shutil
@@ -43,12 +44,20 @@ def _find_uvx() -> str | None:
         ]
     elif platform.system() == "Windows":
         appdata = os.environ.get("LOCALAPPDATA", os.path.join(home, "AppData", "Local"))
+        roaming = os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming"))
         candidates = [
             os.path.join(home, ".local", "bin", "uvx.exe"),
             os.path.join(home, ".cargo", "bin", "uvx.exe"),
             os.path.join(appdata, "uv", "uvx.exe"),
             os.path.join(home, "scoop", "shims", "uvx.exe"),
         ]
+        # `pip install --user uv` places uvx.exe in
+        # %APPDATA%\Python\Python3XX\Scripts, which Windows does not add to PATH
+        # automatically, so shutil.which() above misses it. Include the Scripts
+        # directory of every installed CPython version.
+        candidates += sorted(
+            glob.glob(os.path.join(roaming, "Python", "Python*", "Scripts", "uvx.exe"))
+        )
 
     for path in candidates:
         if os.path.isfile(path) and os.access(path, os.X_OK):

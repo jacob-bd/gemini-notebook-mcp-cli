@@ -1,5 +1,7 @@
 # NotebookLM CLI & MCP Server
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fjacob-bd%2Fnotebooklm-mcp-cli.svg)](https://mcptoplist.com/server/glama%2Fjacob-bd%2Fnotebooklm-mcp-cli)
+
 ![NotebookLM MCP Header](docs/media/header.jpg)
 
 [![PyPI version](https://img.shields.io/pypi/v/notebooklm-mcp-cli)](https://pypi.org/project/notebooklm-mcp-cli/)

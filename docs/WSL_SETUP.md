@@ -86,7 +86,7 @@ nlm login --wsl
 ```
 
 This will:
-- Detect your Windows IP address from WSL
+- Detect the WSL networking mode and Windows host address
 - **Check Windows Firewall setup** (prompts with instructions)
 - Launch Chrome on Windows on port 9223 with remote debugging
 - Connect via the port proxy on port 9222
@@ -109,14 +109,15 @@ When you run `nlm login --wsl`:
 
 ```
 WSL Terminal
-    ↓  detects Windows host IP (from default gateway)
+    ↓  detects networking mode with wslinfo
+    ↓  uses the default gateway (NAT) or 127.0.0.1 (mirrored)
     ↓  launches /mnt/c/Program Files/Google/Chrome/Application/chrome.exe
 Windows Chrome
     ↓  starts on 127.0.0.1:9223 (Windows side, localhost only)
 netsh portproxy
     ↓  forwards 0.0.0.0:9222 → 127.0.0.1:9223
 WSL Auth Script
-    ↓  connects to http://172.x.x.x:9222 (via port proxy)
+    ↓  connects to the Windows host on port 9222 (via port proxy)
     ↓  opens notebook.google.com tab
     ↓  waits for login
     ↓  extracts cookies via CDP
@@ -180,13 +181,18 @@ cat /etc/resolv.conf
 grep nameserver /etc/resolv.conf
 ```
 
-You should see an IP like `172.20.x.x`. If not, your WSL2 networking may be in a different mode.
+In NAT mode, you should see an IP like `172.20.x.x`. In mirrored mode, the Windows host is
+available at `127.0.0.1`.
 
 **Workaround:**
 ```bash
-# Find Windows IP manually
-WINDOWS_IP=$(ip route show | grep default | awk '{print $3}')
-nlm login --cdp-url http://$WINDOWS_IP:9222
+# Find the Windows host address manually
+if [ "$(wslinfo --networking-mode 2>/dev/null)" = "mirrored" ]; then
+    WINDOWS_IP=127.0.0.1
+else
+    WINDOWS_IP=$(ip route show default | awk '{print $3; exit}')
+fi
+nlm login --cdp-url "http://${WINDOWS_IP}:9222"
 ```
 
 ### "Chrome did not start within 30 seconds"
@@ -202,7 +208,12 @@ Sometimes Windows firewall or antivirus blocks the connection.
    ```
    ```bash
    # In WSL (wait a few seconds first)
-   nlm login --cdp-url http://$(grep nameserver /etc/resolv.conf | awk '{print $2}'):9222
+   if [ "$(wslinfo --networking-mode 2>/dev/null)" = "mirrored" ]; then
+       WINDOWS_IP=127.0.0.1
+   else
+       WINDOWS_IP=$(ip route show default | awk '{print $3; exit}')
+   fi
+   nlm login --cdp-url "http://${WINDOWS_IP}:9222"
    ```
 
 ### Terminal still goes black
@@ -245,11 +256,15 @@ CHROME_PID=$!
 # Wait for startup
 sleep 3
 
-# Get Windows IP
-WINDOWS_IP=$(grep nameserver /etc/resolv.conf | awk '{print $2}')
+# Get the Windows host address
+if [ "$(wslinfo --networking-mode 2>/dev/null)" = "mirrored" ]; then
+    WINDOWS_IP=127.0.0.1
+else
+    WINDOWS_IP=$(ip route show default | awk '{print $3; exit}')
+fi
 
 # Login via CDP
-nlm login --cdp-url http://$WINDOWS_IP:9222
+nlm login --cdp-url "http://${WINDOWS_IP}:9222"
 
 # Cleanup
 kill $CHROME_PID

@@ -59,13 +59,15 @@ Refresh authentication tokens for NotebookLM.
 ### Test 1.2 - Interactive Login (Primary)
 **Tool:** `save_auth_tokens` (Fallback)
 **CLI:** `nlm login` (Launches Chrome for automated extraction)
+**WSL2 CLI:** `nlm login --wsl` (Supports NAT and mirrored networking modes)
 
 **Prompt:**
 ```
 I need to authenticate with NotebookLM.
 ```
 
-**Expected:** Chrome opens, logs in, and tokens are saved.
+**Expected:** Chrome opens, logs in, and tokens are saved. On WSL2, Windows Chrome opens and
+the CDP connection succeeds in both NAT and mirrored networking modes.
 
 ---
 

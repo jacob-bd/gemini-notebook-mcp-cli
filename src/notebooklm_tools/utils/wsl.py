@@ -60,17 +60,36 @@ def is_wsl() -> bool:
     return False
 
 
+def _is_mirrored_networking() -> bool:
+    """Return whether WSL is using mirrored networking mode."""
+    try:
+        result = subprocess.run(
+            ["wslinfo", "--networking-mode"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False
+
+    return result.stdout.strip().casefold() == "mirrored"
+
+
 def get_windows_host_ip() -> str | None:
     """Get the Windows host IP address from WSL.
 
-    WSL2 uses a virtual network where the Windows host is the default gateway.
-    We check multiple sources to find the correct IP.
+    In mirrored mode, Windows is reachable through the shared loopback
+    interface. In NAT mode, the Windows host is the default gateway.
 
     Returns:
         IP address string (e.g., "172.20.112.1") or None if not in WSL.
     """
     if not is_wsl():
         return None
+
+    if _is_mirrored_networking():
+        return "127.0.0.1"
 
     # Method 1: Get default gateway (most reliable for Chrome binding)
     try:

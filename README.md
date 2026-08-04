@@ -63,10 +63,10 @@ Connect AI assistants (Claude, Gemini, Cursor, etc.) to Gemini Notebook:
 ```bash
 # Automatic setup — picks the right config for each tool
 nlm setup add claude-code
+nlm setup add claude-desktop
 nlm setup add gemini
 nlm setup add github-copilot
 nlm setup add cursor
-nlm setup add claude-desktop
 nlm setup add cline
 nlm setup add antigravity
 

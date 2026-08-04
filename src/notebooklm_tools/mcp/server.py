@@ -1,4 +1,4 @@
-"""NotebookLM MCP Server - Modular Architecture.
+"""Gemini Notebook MCP Server - Modular Architecture.
 
 This is the main server facade that initializes FastMCP and registers all tools
 from the modular tools package. Tools are organized into domain-specific modules
@@ -40,8 +40,8 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 # Initialize MCP server
 mcp = FastMCP(
-    name="notebooklm",
-    instructions="""NotebookLM MCP - Access NotebookLM (notebooklm.google.com).
+    name="gemini-notebook-mcp",
+    instructions="""Gemini Notebook MCP - Access Gemini Notebook (notebook.google.com).
 
 **Auth:** If you get authentication errors, run `nlm login` via your Bash/terminal tool. This is the automated authentication method that handles everything. Only use save_auth_tokens as a fallback if the CLI fails.
 **Account Switching:** To switch Google Accounts for the MCP server, run `nlm login switch <profile>` in Bash. The MCP server instantly uses the active default profile.
@@ -69,7 +69,7 @@ async def health_check(request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "status": "healthy",
-            "service": "notebooklm-mcp",
+            "service": "gemini-notebook-mcp",
             "version": __version__,
         }
     )
@@ -125,7 +125,7 @@ def main() -> None:
     configure_stdio_utf8_on_windows()
 
     parser = argparse.ArgumentParser(
-        description="NotebookLM MCP Server",
+        description="Gemini Notebook MCP Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Environment Variables:

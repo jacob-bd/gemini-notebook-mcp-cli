@@ -1,5 +1,5 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.9.4 -->
+<!-- nlm-version: 0.9.6 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "Gemini Notebook", "podcast", "audio overview", "research"
@@ -26,6 +26,8 @@ nlm research start "query" --title "New Research"  # Create destination notebook
 5. **Use `nlm alias set`** to simplify UUIDs
 6. **⚠️ NEVER auto-delete**: Always ask user before `nlm delete`
 7. **⚠️ NEVER use `nlm chat start`**: It's an interactive REPL. Use `nlm notebook query` instead
+8. **Use the configured MCP name**: Register this server as `gemini-notebook-mcp`; the executable remains `notebooklm-mcp` for compatibility.
+9. **Never configure blindly**: `nlm setup` verifies the MCP executable and detected client profile before writing. User-level skills require the target tool to be detected; use `--level project` for an intentional project-local install.
 
 ### Common Workflows
 

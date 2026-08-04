@@ -1,4 +1,4 @@
-"""Diagnostic command for troubleshooting NotebookLM MCP setup."""
+"""Diagnostic command for troubleshooting Gemini Notebook MCP setup."""
 
 import platform
 import shutil
@@ -10,7 +10,7 @@ from notebooklm_tools.cli.utils import make_console
 console = make_console()
 app = typer.Typer(
     name="doctor",
-    help="Diagnose NotebookLM MCP installation and configuration",
+    help="Diagnose Gemini Notebook MCP installation and configuration",
     invoke_without_command=True,
 )
 
@@ -26,7 +26,7 @@ def doctor(
     ),
 ) -> None:
     """
-    Run diagnostics on your NotebookLM MCP installation.
+    Run diagnostics on your Gemini Notebook MCP installation.
 
     Checks installation, authentication, Chrome profile, and AI tool
     configurations. Suggests fixes for common issues.
@@ -38,7 +38,7 @@ def doctor(
     if ctx.invoked_subcommand is not None:
         return
 
-    console.print("[bold]NotebookLM MCP Doctor[/bold]\n")
+    console.print("[bold]Gemini Notebook MCP Doctor[/bold]\n")
 
     # Check WSL first - it affects other checks
     is_wsl = _check_wsl(verbose)
@@ -361,7 +361,7 @@ def _check_clients(verbose: bool) -> bool:
 
     from notebooklm_tools.cli.commands.setup import (
         CLIENT_REGISTRY,
-        _claude_desktop_config_path,
+        _claude_desktop_profile_paths,
         _cursor_config_path,
         _gemini_config_path,
         _is_configured,
@@ -401,9 +401,10 @@ def _check_clients(verbose: bool) -> bool:
                 continue
 
         elif client_id == "claude-desktop":
-            path = _claude_desktop_config_path()
-            config = _read_json_config(path)
-            status = _is_configured(config)
+            paths = _claude_desktop_profile_paths()
+            status = bool(paths) and any(
+                _is_configured(_read_json_config(path)) for path in paths.values()
+            )
 
         elif client_id == "gemini":
             path = _gemini_config_path()

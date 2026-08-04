@@ -145,7 +145,7 @@ For MCP server configuration, pass the variable in your client config:
 ```json
 {
   "mcpServers": {
-    "notebooklm-mcp": {
+    "gemini-notebook-mcp": {
       "command": "notebooklm-mcp",
       "env": {
         "NOTEBOOKLM_BASE_URL": "https://notebooklm.cloud.google.com"
@@ -251,19 +251,19 @@ Once authenticated, add the MCP to your AI tool:
 
 **Claude Code:**
 ```bash
-claude mcp add notebooklm-mcp -- notebooklm-mcp
+claude mcp add gemini-notebook-mcp -- notebooklm-mcp
 ```
 
 **Gemini CLI:**
 ```bash
-gemini mcp add notebooklm notebooklm-mcp
+gemini mcp add gemini-notebook-mcp notebooklm-mcp
 ```
 
 **Manual (settings.json):**
 ```json
 {
   "mcpServers": {
-    "notebooklm-mcp": {
+    "gemini-notebook-mcp": {
       "command": "notebooklm-mcp"
     }
   }
@@ -386,7 +386,7 @@ For MCP clients, add the same environment variable to the server config:
 ```json
 {
   "mcpServers": {
-    "notebooklm-mcp": {
+    "gemini-notebook-mcp": {
       "command": "notebooklm-mcp",
       "env": {
         "NOTEBOOKLM_RPC_TRANSPORT": "cdp"

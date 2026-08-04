@@ -301,8 +301,14 @@ nlm skill install alef-agent
 
 Configure the Gemini Notebook MCP server for AI tools in one command:
 
+The configured server name is `gemini-notebook-mcp`; the executable remains
+`notebooklm-mcp` for compatibility with existing installations.
+
 ```bash
 nlm setup add claude-code       # Configure via `claude mcp add`
+nlm setup add claude-desktop    # Configure detected Claude Desktop profile(s)
+nlm setup add claude-desktop --profile 3p  # Select Relay AI / 3P explicitly
+nlm setup remove claude-desktop --profile regular  # Remove from regular explicitly
 nlm setup add gemini            # Write ~/.gemini/settings.json
 nlm setup add github-copilot    # Write .vscode/mcp.json
 nlm setup add cursor            # Write ~/.cursor/mcp.json
@@ -314,7 +320,21 @@ nlm setup remove gemini         # Remove from Gemini CLI
 nlm setup list                  # Show all clients and config status
 ```
 
-**Supported Clients:** `claude-code`, `gemini`, `github-copilot`, `cursor`, `windsurf`, `cline`, `antigravity`, `codex`, `opencode`
+Claude Desktop setup never creates a profile that is not detected. When both
+regular and Relay AI/3P profiles are present, the command prompts for regular,
+3P, or both. Removal uses the same profile selection. User-level skill installs
+likewise require the target tool to be detected; project-level installs remain
+explicitly scoped to the current project.
+Removal only offers profiles containing `gemini-notebook-mcp` or a recognized
+legacy entry, so unrelated MCP servers are not removed.
+
+Fully quit the selected Claude Desktop profile before adding or removing the
+MCP, including when it was launched by Relay AI. The CLI detects running
+regular and 3P instances and refuses to write while they are open, since Claude
+may rewrite the config and discard the change. Reopen Claude Desktop after the
+command completes.
+
+**Supported Clients:** `claude-code`, `claude-desktop`, `gemini`, `github-copilot`, `cursor`, `windsurf`, `cline`, `antigravity`, `codex`, `opencode`
 
 **For unsupported tools:** Use `nlm setup add json` to interactively generate a JSON config snippet. Choose between uvx or regular mode, full path or command name, and whether to include the `mcpServers` wrapper. The result is printed and can be copied to clipboard.
 

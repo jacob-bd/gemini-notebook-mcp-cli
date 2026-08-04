@@ -1,1 +1,1 @@
-"""MCP server interface for NotebookLM."""
+"""MCP server interface for Gemini Notebook."""

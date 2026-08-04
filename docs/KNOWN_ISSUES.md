@@ -131,6 +131,34 @@ If auto-extraction fails:
 
 ---
 
+## 6. Claude Desktop profile setup
+
+### Symptoms
+
+- The MCP does not appear in Claude Desktop after setup.
+- `nlm setup add claude-desktop --profile 3p` says Claude is still running even
+  though the window was closed.
+
+### Cause
+
+Claude Desktop keeps separate regular and Relay AI/3P profiles. Claude or Relay
+AI can also rewrite its configuration while the app is open. macOS may leave a
+Crashpad helper process behind after the window closes; that helper is not an
+active Claude Desktop instance and is ignored by current `nlm` versions.
+
+### Fix
+
+1. Fully quit the selected Claude Desktop profile and stop the Relay AI launcher
+   if it owns the 3P instance.
+2. Run `nlm setup add claude-desktop --profile 3p` (or `regular`).
+3. Reopen the selected Claude Desktop profile and check its Developer settings.
+
+The CLI never creates a missing profile. Removal only offers profiles that
+contain `gemini-notebook-mcp` or a recognized legacy entry, leaving unrelated
+MCP servers unchanged.
+
+---
+
 ## Reporting Issues
 
 When reporting issues, include:

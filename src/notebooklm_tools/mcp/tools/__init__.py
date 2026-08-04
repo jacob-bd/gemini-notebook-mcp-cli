@@ -1,4 +1,4 @@
-"""MCP Tools - Modular tool definitions for NotebookLM MCP Server."""
+"""MCP tools - Modular tool definitions for the Gemini Notebook MCP server."""
 
 # Import all tools from submodules for registration
 from .auth import refresh_auth, save_auth_tokens

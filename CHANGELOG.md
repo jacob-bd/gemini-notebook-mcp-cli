@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-08-03
+
+### Added
+- **Profile-aware Claude Desktop setup** — `nlm setup add/remove claude-desktop` now detects regular and Relay AI/3P profiles on macOS, Windows, and Linux. When both profiles exist, the command prompts for regular, 3P, or both; scripts can use `--profile regular|3p|both`. Missing profiles are never created. This builds on the original Claude Desktop setup contribution in [PR #275](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/275) by **@sanjarcode** — thank you, Sanjar!
+
+### Changed
+- **Gemini Notebook MCP branding** — New configuration entries use `gemini-notebook-mcp` across supported clients, MCP metadata, the desktop extension, and the packaged skill. The `notebooklm-mcp` executable and `notebooklm-mcp-cli` package names remain unchanged for compatibility. Recognized legacy entries are migrated or removed safely.
+- **Safe user-level skill installation** — `nlm skill install` now requires the target tool to be detected before writing to a user-level directory. Use `--level project` when a project-local skill is intentional.
+
+### Fixed
+- **Claude Desktop MCP setup compatibility** — Setup uses the resolved `notebooklm-mcp` binary path, handles Windows MSIX config locations, and remains compatible with Relay AI's Claude Desktop launcher. It only offers configured profiles for removal, refuses to write while the selected Claude instance is active, and ignores leftover Crashpad helper processes after Claude has been closed.
+
 ## [0.9.5] - 2026-07-28
 
 ### Fixed

@@ -210,7 +210,7 @@ Authenticated gateway
         |
         | private loopback connection
         v
-NotebookLM MCP (Streamable HTTP)
+Gemini Notebook MCP (Streamable HTTP)
         |
         | Google browser session
         v

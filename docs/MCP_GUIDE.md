@@ -9,14 +9,15 @@ Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP serv
 uv tool install notebooklm-mcp-cli
 
 # Add to Claude Code
-claude mcp add --scope user notebooklm-mcp notebooklm-mcp
+claude mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 
 # Add to Gemini CLI
-gemini mcp add --scope user notebooklm-mcp notebooklm-mcp
+gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 ```
 
-> **Server naming:** Use `notebooklm-mcp` (the default) as the server
-> name when registering with your agent. If you have a legacy
+> **Server naming:** Use `gemini-notebook-mcp` as the server name when
+> registering with your agent. The executable remains `notebooklm-mcp`.
+> If you have a legacy
 > browser-automation Gemini Notebook MCP installed under a different name
 > (e.g. `notebooklm`), remove that one first — agents like Hermes get
 > confused when two servers expose overlapping tool names
@@ -363,7 +364,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 This MCP has **43 tools** which consume context. Best practices:
 
-- **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
+- **Disable when not using**: In Claude Code, use `@gemini-notebook-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
 - **Use unified tools**: `source_add`, `studio_create`, `download_artifact`, `download_all_artifacts` handle multiple operations each
 - **Poll wisely**: Use `studio_status` sparingly - artifacts take 1-5 minutes
@@ -412,7 +413,7 @@ nlm setup add json              # Any other tool (interactive JSON generator)
 
 ### Claude Code
 ```bash
-claude mcp add --scope user notebooklm-mcp notebooklm-mcp
+claude mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 ```
 
 ### Cursor
@@ -420,7 +421,7 @@ Add to `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "notebooklm-mcp": {
+    "gemini-notebook-mcp": {
       "command": "/path/to/notebooklm-mcp"
     }
   }
@@ -432,7 +433,7 @@ Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "notebooklm-mcp": {
+    "gemini-notebook-mcp": {
       "command": "notebooklm-mcp",
       "args": []
     }
@@ -442,7 +443,7 @@ Add to `.vscode/mcp.json`:
 
 ### Gemini CLI
 ```bash
-gemini mcp add --scope user notebooklm-mcp notebooklm-mcp
+gemini mcp add --scope user gemini-notebook-mcp notebooklm-mcp
 ```
 
 </details>

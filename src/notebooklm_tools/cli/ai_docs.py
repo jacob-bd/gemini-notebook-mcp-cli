@@ -706,6 +706,10 @@ nlm skill show                              # Display skill content
 - `hermes` - Hermes Agent by NousResearch (`~/.hermes/skills/nlm-skill/`)
 - `other` - Export all formats to `./nlm-skill-export/` for manual installation
 
+User-level installs require the target tool to be detected and never create a
+missing tool directory. Project-level installs are explicit and remain
+available for project-local skills.
+
 **Installation Levels:**
 - `user` (default): Installs to user config directory (e.g., `~/.claude/skills/nlm-skill/`)
 - `project`: Installs to current project directory (e.g., `.claude/skills/nlm-skill/`)
@@ -730,7 +734,7 @@ nlm skill show | head -50
 ```
 
 **What Gets Installed:**
-- `SKILL.md` - Main skill file with NotebookLM CLI/MCP documentation
+- `SKILL.md` - Main skill file with Gemini Notebook CLI/MCP documentation
 - `references/` - Additional documentation, including command, troubleshooting, workflow, Studio prompting, and remote MCP guides
 
 For Gemini CLI (v0.33.1+) and Codex, it installs to `~/.agents/skills/nlm-skill/SKILL.md` — the cross-tool compatible path.
@@ -775,7 +779,7 @@ nlm set config <key> <value>    # Update setting
 
 ### Diagnostics & Setup
 
-**Doctor** - Diagnose your NotebookLM MCP installation:
+**Doctor** - Diagnose your Gemini Notebook MCP installation:
 ```bash
 nlm doctor                      # Run all diagnostic checks
 nlm doctor --verbose            # Show additional details
@@ -788,6 +792,8 @@ Checks: installation, authentication, browser profile, AI tool configs. Shows su
 nlm setup list                          # Show all clients and their MCP status
 nlm setup add claude-code               # Add to Claude Code (via claude mcp add)
 nlm setup add claude-desktop            # Add to Claude Desktop config
+nlm setup add claude-desktop --profile 3p  # Select Relay AI / 3P explicitly
+nlm setup remove claude-desktop --profile regular  # Remove from regular explicitly
 nlm setup add gemini                    # Add to Gemini CLI config
 nlm setup add cursor                    # Add to Cursor config
 nlm setup add windsurf                  # Add to Windsurf config
@@ -799,6 +805,16 @@ nlm setup add all                       # Scan system & configure all detected t
 nlm setup remove <client>               # Remove MCP from client
 nlm setup remove all                    # Remove MCP from ALL configured tools (with confirmation)
 ```
+
+The configured MCP server name is `gemini-notebook-mcp`; the executable remains
+`notebooklm-mcp` for compatibility with existing installations. Legacy server
+names are recognized for migration and removal.
+
+Claude Desktop setup only targets detected regular or Relay AI/3P profiles and
+never creates a missing profile. Fully quit the selected profile before adding
+or removing configuration; the CLI refuses to write while its executable is
+running. User-level skill installation likewise requires the target tool to be
+detected; use `--level project` for an intentional project-local install.
 
 **Supported Clients:** claude-code, claude-desktop, gemini, cursor, windsurf, cline, antigravity, codex
 

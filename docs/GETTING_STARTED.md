@@ -28,8 +28,8 @@ If you have never used `notebooklm-mcp-cli` before, the path is:
 3. **Connect an agent** — pick your client:
    ```bash
    nlm skill install hermes          # Hermes Agent
-   claude mcp add notebooklm-mcp -- notebooklm-mcp   # Claude Code
-   gemini mcp add --scope user notebooklm-mcp -- notebooklm-mcp   # Gemini CLI
+   claude mcp add gemini-notebook-mcp -- notebooklm-mcp   # Claude Code
+   gemini mcp add --scope user gemini-notebook-mcp -- notebooklm-mcp   # Gemini CLI
    nlm setup add json                # any other MCP client (prints JSON)
    ```
 4. **Verify** — restart your agent and call `notebook_list` (MCP) or
@@ -82,10 +82,15 @@ Pick whichever fits your agent framework:
 nlm skill install hermes
 
 # Claude Code
-claude mcp add notebooklm-mcp -- notebooklm-mcp
+claude mcp add gemini-notebook-mcp -- notebooklm-mcp
 
 # Gemini CLI
-gemini mcp add --scope user notebooklm-mcp -- notebooklm-mcp
+gemini mcp add --scope user gemini-notebook-mcp -- notebooklm-mcp
+
+# Claude Desktop (detects regular and Relay AI/3P profiles)
+nlm setup add claude-desktop
+# Or select Relay AI / Claude 3P explicitly
+nlm setup add claude-desktop --profile 3p
 ```
 
 For any other MCP client, generate a config snippet:
@@ -94,9 +99,19 @@ For any other MCP client, generate a config snippet:
 nlm setup add json
 ```
 
-> **Recommended server name:** `notebooklm-mcp` (the default). Avoid
+> **Recommended server name:** `gemini-notebook-mcp`. The executable remains
+> `notebooklm-mcp`. Avoid
 > generic names like `notebooklm` if you also have a legacy server
 > registered, or your agent will mix their tools up.
+
+For Claude Desktop, fully quit the selected profile before running setup. If
+both regular and Relay AI/3P profiles are detected, the CLI asks which one to
+configure; if no profile exists, it creates nothing. Reopen Claude Desktop
+after setup completes.
+
+User-level skill installation also requires the target tool to be detected;
+use `nlm skill install <tool> --level project` when you intentionally want a
+project-local skill without changing user-level tool directories.
 
 ### 4. Remove the old MCP server
 

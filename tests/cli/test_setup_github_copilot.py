@@ -7,6 +7,7 @@ from unittest.mock import patch
 from notebooklm_tools.cli.commands.setup import (
     CLIENT_REGISTRY,
     MCP_SERVER_CMD,
+    MCP_SERVER_NAME,
     _detect_tool,
     _github_copilot_config_path,
     _is_already_configured,
@@ -50,8 +51,9 @@ class TestSetupGitHubCopilot:
         assert result is True
         config = json.loads(config_path.read_text())
         assert "servers" in config
-        assert "notebooklm-mcp" in config["servers"]
-        entry = config["servers"]["notebooklm-mcp"]
+        assert MCP_SERVER_NAME in config["servers"]
+        assert "notebooklm-mcp" not in config["servers"]
+        entry = config["servers"][MCP_SERVER_NAME]
         assert entry["command"] == MCP_SERVER_CMD
         assert entry["args"] == []
 
@@ -73,13 +75,13 @@ class TestSetupGitHubCopilot:
         config = json.loads(config_path.read_text())
         assert config["inputs"] == existing["inputs"]
         assert "fetch" in config["servers"]
-        assert "notebooklm-mcp" in config["servers"]
+        assert MCP_SERVER_NAME in config["servers"]
 
     def test_skips_if_already_configured(self, tmp_path):
         config_path = tmp_path / ".vscode" / "mcp.json"
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(
-            json.dumps({"servers": {"notebooklm-mcp": {"command": MCP_SERVER_CMD, "args": []}}})
+            json.dumps({"servers": {MCP_SERVER_NAME: {"command": MCP_SERVER_CMD, "args": []}}})
         )
 
         with patch(
@@ -174,7 +176,7 @@ class TestRemoveGitHubCopilot:
         config = {
             "inputs": [{"type": "promptString"}],
             "servers": {
-                "notebooklm-mcp": {"command": MCP_SERVER_CMD, "args": []},
+                MCP_SERVER_NAME: {"command": MCP_SERVER_CMD, "args": []},
                 "fetch": {"command": "uvx", "args": ["mcp-server-fetch"]},
             },
         }
@@ -189,7 +191,7 @@ class TestRemoveGitHubCopilot:
 
         assert result is True
         updated = json.loads(config_path.read_text())
-        assert "notebooklm-mcp" not in updated["servers"]
+        assert MCP_SERVER_NAME not in updated["servers"]
         assert "fetch" in updated["servers"]
         assert updated["inputs"] == config["inputs"]
 

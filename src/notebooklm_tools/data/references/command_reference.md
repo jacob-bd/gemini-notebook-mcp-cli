@@ -1035,10 +1035,17 @@ Run `nlm <family> <command> --help` for selector and profile options.
 
 ## Setup, Skill, and Diagnostics
 
+MCP setup writes the configured server name `gemini-notebook-mcp`; the
+`notebooklm-mcp` executable remains unchanged for compatibility.
+
 ```bash
 nlm setup list
 nlm setup add <tool>
 nlm setup remove <tool>
+
+# Claude Desktop profile selection
+nlm setup add claude-desktop --profile regular|3p|both
+nlm setup remove claude-desktop --profile regular|3p|both
 
 nlm skill list
 nlm skill install <tool> [--level user|project]
@@ -1049,6 +1056,15 @@ nlm skill show
 nlm doctor
 nlm doctor --verbose
 ```
+
+Claude Desktop setup only targets detected profiles. If both regular and
+Relay AI/3P profiles exist, the command prompts for a selection unless
+`--profile` is supplied; if no profile exists, nothing is created. Fully quit
+the selected Claude profile before adding or removing MCP configuration. The
+CLI refuses to write while the active Claude executable is running, including
+when Relay AI launched it. User-level skill installation likewise requires
+the target tool to be detected; use `--level project` for an intentional
+project-local install.
 
 Verb-first aliases are also available for common operations, including
 `nlm create`, `nlm list`, `nlm get`, `nlm add`, `nlm rename`, `nlm delete`,

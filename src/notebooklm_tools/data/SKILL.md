@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.9.5"
+version: "0.9.6"
 description: "Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"Gemini Notebook\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any Gemini Notebook-related automation task."
 ---
 
@@ -12,14 +12,14 @@ This skill provides comprehensive guidance for using Gemini Notebook via both th
 
 **ALWAYS check which tools are available before proceeding:**
 
-1. **Check for MCP tools**: Look for tools starting with `mcp__notebooklm-mcp__*` or `mcp_notebooklm_*`
+1. **Check for MCP tools**: Look for tools starting with `mcp__gemini-notebook-mcp__*` or `mcp_gemini_notebook_mcp_*`
 2. **If BOTH MCP tools AND CLI are available**: **ASK the user** which they prefer to use before proceeding
 3. **If only MCP tools are available**: Use them directly (refer to tool docstrings for parameters)
 4. **If only CLI is available**: Use `nlm` CLI commands via Bash
 
 **Decision Logic:**
 ```
-has_mcp_tools = check_available_tools()  # Look for mcp__notebooklm-mcp__* or mcp_notebooklm_*
+has_mcp_tools = check_available_tools()  # Look for mcp__gemini-notebook-mcp__* or mcp_gemini_notebook_mcp_*
 has_cli = check_bash_available()  # Can run nlm commands
 
 if has_mcp_tools and has_cli:
@@ -27,7 +27,7 @@ if has_mcp_tools and has_cli:
     user_preference = ask_user()
 else if has_mcp_tools:
     # Use MCP tools directly
-    mcp__notebooklm-mcp__notebook_list()
+    mcp__gemini-notebook-mcp__notebook_list()
 else:
     # Use CLI via Bash
     bash("nlm notebook list")
@@ -128,7 +128,7 @@ If using MCP tools and encountering authentication errors:
 nlm login
 
 # Then reload tokens in MCP
-mcp__notebooklm-mcp__refresh_auth()
+mcp__gemini-notebook-mcp__refresh_auth()
 # Returns status: "success" (valid), "expired" (tokens dead, run `nlm login`),
 # or "error". `nlm login` is the only recovery path for "expired".
 ```
@@ -136,7 +136,7 @@ mcp__notebooklm-mcp__refresh_auth()
 Or manually save cookies via MCP (fallback):
 ```python
 # Extract cookies from Chrome DevTools and save
-mcp__notebooklm-mcp__save_auth_tokens(cookies="<cookie_header>")
+mcp__gemini-notebook-mcp__save_auth_tokens(cookies="<cookie_header>")
 ```
 ```
 
@@ -512,7 +512,7 @@ nlm rename studio <artifact-id> "New Title"  # verb-first alternative
 Use `server_info` to get version and check for updates:
 
 ```python
-mcp__notebooklm-mcp__server_info()
+mcp__gemini-notebook-mcp__server_info()
 # Returns version/update fields plus auth_status
 ```
 
@@ -647,16 +647,25 @@ nlm login switch work                        # Switch default profile
 
 ### Diagnostics & Setup
 
-Diagnose and fix issues with your NotebookLM installation, MCP server, and AI tools:
+Diagnose and fix issues with your Gemini Notebook installation, MCP server, and AI tools:
 
 ```bash
 nlm doctor                                   # Full diagnostic check
 nlm setup mcp                                # Show MCP server config JSON
 nlm setup add json                           # Interactive MCP config generator
-nlm setup add claude                         # Setup MCP for Claude Desktop
+nlm setup add claude-desktop                 # Setup detected Claude Desktop profile(s)
+nlm setup add claude-desktop --profile 3p    # Select Relay AI / Claude 3P
+nlm setup remove claude-desktop --profile 3p # Remove from Relay AI / Claude 3P
 nlm setup add cursor                         # Setup MCP for Cursor
 nlm setup remove cursor                      # Remove MCP from Cursor
 ```
+
+Claude Desktop setup never creates a missing profile. If both regular and
+Relay AI/3P profiles exist, select one with `--profile regular|3p|both` or
+answer the prompt. Fully quit the selected Claude profile before setup;
+the CLI refuses to write while its executable is running. User-level skill
+installation likewise requires the target tool to be detected; use
+`--level project` for an intentional project-local install.
 
 ### 11. Skill Management
 

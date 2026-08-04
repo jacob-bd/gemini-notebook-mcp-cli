@@ -530,39 +530,14 @@ def install(
 
         if not tool_detected:
             console.print(
-                f"[yellow]Warning:[/yellow] {tool} does not appear to be installed on your system."
+                f"[yellow]Warning:[/yellow] {tool} does not appear to be installed on your system. "
+                "No files were changed."
             )
-            console.print("[dim](No binary on PATH and no config directory found)[/dim]")
-            console.print()
-
-            # Offer options
-            console.print("Options:")
-            console.print("  1. Create the directory and install anyway")
-            console.print("  2. Use --level project to install in current directory")
-            console.print(f"  3. Cancel and install {tool} first")
-            console.print()
-
-            choice = typer.prompt(
-                "Choose an option",
-                type=int,
-                default=2,
+            console.print(
+                f"[dim]Install {tool} first, or explicitly use --level project "
+                "for a project-local skill.[/dim]"
             )
-
-            if choice == 1:
-                console.print(f"[dim]Creating {install_path}...[/dim]")
-                install_path.mkdir(parents=True, exist_ok=True)
-            elif choice == 2:
-                console.print("[dim]Switching to project-level installation...[/dim]")
-                level = "project"
-                install_path = config.get("project")
-                if not install_path:
-                    console.print(
-                        f"[red]Error:[/red] Tool '{tool}' does not support project-level installation"
-                    )
-                    raise typer.Exit(1)
-            else:
-                console.print("Cancelled.")
-                raise typer.Exit(0)
+            raise typer.Exit(0)
 
     # Check if already installed
     is_installed, _ = check_install_status(tool, level)

@@ -11,6 +11,7 @@ from unittest.mock import patch
 from notebooklm_tools.cli.commands.setup import (
     CLIENT_REGISTRY,
     MCP_SERVER_CMD,
+    MCP_SERVER_NAME,
     OPENCODE_MCP_TIMEOUT_MS,
     _detect_tool,
     _is_already_configured,
@@ -55,8 +56,9 @@ class TestSetupOpenCode:
         assert result is True
         config = json.loads(config_path.read_text())
         assert "mcp" in config
-        assert "notebooklm" in config["mcp"]
-        entry = config["mcp"]["notebooklm"]
+        assert MCP_SERVER_NAME in config["mcp"]
+        assert "notebooklm" not in config["mcp"]
+        entry = config["mcp"][MCP_SERVER_NAME]
         assert entry["type"] == "local"
         assert entry["command"] == [MCP_SERVER_CMD]
         assert entry["enabled"] is True
@@ -81,7 +83,7 @@ class TestSetupOpenCode:
         assert config["$schema"] == "https://opencode.ai/config.json"
         assert config["provider"] == {"test": {}}
         assert config["model"] == "test-model"
-        assert "notebooklm" in config["mcp"]
+        assert MCP_SERVER_NAME in config["mcp"]
 
     def test_skips_if_already_configured(self, tmp_path):
         config_path = tmp_path / "opencode.json"
@@ -118,7 +120,7 @@ class TestSetupOpenCode:
             _setup_opencode()
 
         config = json.loads(config_path.read_text())
-        command = config["mcp"]["notebooklm"]["command"]
+        command = config["mcp"][MCP_SERVER_NAME]["command"]
         assert isinstance(command, list)
         assert command == [MCP_SERVER_CMD]
 
@@ -128,7 +130,9 @@ class TestIsAlreadyConfigured:
 
     def test_detects_notebooklm_key(self, tmp_path):
         config_path = tmp_path / "opencode.json"
-        config_path.write_text(json.dumps({"mcp": {"notebooklm": {"type": "local"}}}))
+        config_path.write_text(
+            json.dumps({"mcp": {"notebooklm": {"type": "local", "command": [MCP_SERVER_CMD]}}})
+        )
         with patch(
             "notebooklm_tools.cli.commands.setup._opencode_config_path",
             return_value=config_path,
@@ -137,7 +141,9 @@ class TestIsAlreadyConfigured:
 
     def test_detects_notebooklm_mcp_key(self, tmp_path):
         config_path = tmp_path / "opencode.json"
-        config_path.write_text(json.dumps({"mcp": {"notebooklm-mcp": {"type": "local"}}}))
+        config_path.write_text(
+            json.dumps({"mcp": {"notebooklm-mcp": {"type": "local", "command": [MCP_SERVER_CMD]}}})
+        )
         with patch(
             "notebooklm_tools.cli.commands.setup._opencode_config_path",
             return_value=config_path,
@@ -201,7 +207,7 @@ class TestRemoveOpenCode:
         config = {
             "model": "test",
             "mcp": {
-                "notebooklm": {"type": "local", "command": ["notebooklm-mcp"]},
+                MCP_SERVER_NAME: {"type": "local", "command": ["notebooklm-mcp"]},
                 "other-server": {"type": "local", "command": ["other"]},
             },
         }
@@ -215,13 +221,13 @@ class TestRemoveOpenCode:
 
         assert result is True
         updated = json.loads(config_path.read_text())
-        assert "notebooklm" not in updated["mcp"]
+        assert MCP_SERVER_NAME not in updated["mcp"]
         assert "other-server" in updated["mcp"]
         assert updated["model"] == "test"
 
     def test_removes_notebooklm_mcp_entry(self, tmp_path):
         config_path = tmp_path / "opencode.json"
-        config = {"mcp": {"notebooklm-mcp": {"type": "local"}}}
+        config = {"mcp": {"notebooklm-mcp": {"type": "local", "command": [MCP_SERVER_CMD]}}}
         config_path.write_text(json.dumps(config))
 
         with patch(
@@ -280,7 +286,7 @@ class TestOpenCodeTimeout:
             _setup_opencode()
 
         config = json.loads(config_path.read_text())
-        assert config["mcp"]["notebooklm"]["timeout"] == OPENCODE_MCP_TIMEOUT_MS
+        assert config["mcp"][MCP_SERVER_NAME]["timeout"] == OPENCODE_MCP_TIMEOUT_MS
 
     def test_preserves_existing_experimental_mcp_timeout(self, tmp_path):
         """If user set a custom mcp_timeout, don't overwrite it."""
@@ -315,7 +321,7 @@ class TestOpenCodeTimeout:
     def test_adds_timeout_when_already_configured(self, tmp_path):
         """Even if server entry exists, ensure timeout is set."""
         config_path = tmp_path / "opencode.json"
-        existing = {"mcp": {"notebooklm": {"type": "local", "command": ["notebooklm-mcp"]}}}
+        existing = {"mcp": {MCP_SERVER_NAME: {"type": "local", "command": ["notebooklm-mcp"]}}}
         config_path.write_text(json.dumps(existing))
 
         with patch(
@@ -331,7 +337,7 @@ class TestOpenCodeTimeout:
         """Remove should clean up experimental.mcp_timeout when no MCP servers left."""
         config_path = tmp_path / "opencode.json"
         config = {
-            "mcp": {"notebooklm": {"type": "local"}},
+            "mcp": {MCP_SERVER_NAME: {"type": "local", "command": [MCP_SERVER_CMD]}},
             "experimental": {"mcp_timeout": OPENCODE_MCP_TIMEOUT_MS},
         }
         config_path.write_text(json.dumps(config))
@@ -350,7 +356,7 @@ class TestOpenCodeTimeout:
         config_path = tmp_path / "opencode.json"
         config = {
             "mcp": {
-                "notebooklm": {"type": "local"},
+                MCP_SERVER_NAME: {"type": "local", "command": [MCP_SERVER_CMD]},
                 "other-server": {"type": "local", "command": ["other"]},
             },
             "experimental": {"mcp_timeout": OPENCODE_MCP_TIMEOUT_MS},
@@ -370,7 +376,7 @@ class TestOpenCodeTimeout:
         """Remove should only clean mcp_timeout, not other experimental keys."""
         config_path = tmp_path / "opencode.json"
         config = {
-            "mcp": {"notebooklm": {"type": "local"}},
+            "mcp": {MCP_SERVER_NAME: {"type": "local", "command": [MCP_SERVER_CMD]}},
             "experimental": {
                 "mcp_timeout": OPENCODE_MCP_TIMEOUT_MS,
                 "other_flag": True,

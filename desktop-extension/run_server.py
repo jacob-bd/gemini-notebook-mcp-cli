@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Robust launcher for NotebookLM MCP Server in Claude Desktop.
+"""Robust launcher for the Gemini Notebook MCP Server in Claude Desktop.
 
 Claude Desktop on macOS runs with a restricted PATH, so `uvx` may not be
 discoverable. This script searches common install locations before falling back
@@ -67,7 +67,7 @@ def _find_uvx() -> str | None:
 
 
 def main() -> None:
-    """Find uvx and launch the NotebookLM MCP server."""
+    """Find uvx and launch the Gemini Notebook MCP server."""
     uvx = _find_uvx()
 
     if not uvx:

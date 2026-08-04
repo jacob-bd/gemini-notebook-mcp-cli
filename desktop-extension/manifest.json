@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.2",
-  "name": "notebooklm-mcp",
-  "display_name": "NotebookLM MCP Server",
-  "version": "0.9.4",
-  "description": "Connect Claude to Google NotebookLM. Create podcasts, research topics, generate quizzes, flashcards, mind maps, and more from your notebooks.",
-  "long_description": "This extension connects Claude Desktop to Google NotebookLM via the Model Context Protocol. It provides 43 tools for managing notebooks, sources, labels, chat sessions, research, sharing, and generated content.\n\n**Prerequisites:**\n1. Install the package: `pip install notebooklm-mcp-cli` or `uv tool install notebooklm-mcp-cli`\n2. Authenticate: Run `nlm login` to set up your Google account\n\n**Features:**\n- Create and manage notebooks\n- Add sources (URLs, YouTube, Google Drive, text, files)\n- Generate podcasts (Audio Overview)\n- Create quizzes, flashcards, mind maps, reports\n- Research topics with web or Drive search",
+  "name": "gemini-notebook-mcp",
+  "display_name": "Gemini Notebook MCP Server",
+  "version": "0.9.6",
+  "description": "Connect Claude to Gemini Notebook. Create podcasts, research topics, generate quizzes, flashcards, mind maps, and more from your notebooks.",
+  "long_description": "This extension connects Claude Desktop to Gemini Notebook via the Model Context Protocol. It provides 43 tools for managing notebooks, sources, labels, chat sessions, research, sharing, and generated content.\n\n**Prerequisites:**\n1. Install the package: `pip install notebooklm-mcp-cli` or `uv tool install notebooklm-mcp-cli`\n2. Authenticate: Run `nlm login` to set up your Google account\n\n**Features:**\n- Create and manage notebooks\n- Add sources (URLs, YouTube, Google Drive, text, files)\n- Generate podcasts (Audio Overview)\n- Create quizzes, flashcards, mind maps, reports\n- Research topics with web or Drive search",
   "author": {
     "name": "Jacob Ben-David",
     "email": "mail4j@duck.com",

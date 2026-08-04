@@ -1,7 +1,7 @@
 """MCP server setup commands for AI tool clients.
 
-Configures the notebooklm-mcp server in various AI tool config files,
-so the tools can use NotebookLM via MCP protocol.
+Configures the Gemini Notebook MCP server in various AI tool config files,
+so the tools can use Gemini Notebook via MCP protocol.
 
 This is different from `nlm skill` which installs skill/reference docs.
 `nlm setup` configures the actual MCP server transport.
@@ -10,6 +10,7 @@ This is different from `nlm skill` which installs skill/reference docs.
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tomllib
@@ -25,17 +26,33 @@ from notebooklm_tools.cli.utils import is_tool_on_system, make_console
 console = make_console()
 app = typer.Typer(
     name="setup",
-    help="Configure NotebookLM MCP server for AI tools",
+    help="Configure Gemini Notebook MCP server for AI tools",
     no_args_is_help=True,
 )
 
-# MCP server command - the binary that clients will execute
+# MCP server identifier used in client configuration files.
+MCP_SERVER_NAME = "gemini-notebook-mcp"
+
+# The executable remains unchanged for compatibility with existing installs.
 MCP_SERVER_CMD = "notebooklm-mcp"
+
+# Older releases used these server names. Recognize them for migration and
+# removal, but never write them into new configuration.
+LEGACY_MCP_SERVER_NAMES = ("notebooklm-mcp", "notebooklm")
+MCP_SERVER_NAMES = (MCP_SERVER_NAME, *LEGACY_MCP_SERVER_NAMES)
 
 # Default MCP tool call timeout in milliseconds (5 minutes).
 # NotebookLM operations (query, source add, research, studio) can take 60-120+ seconds.
 # OpenCode's default MCP SDK timeout is 60s, which is too short.
 OPENCODE_MCP_TIMEOUT_MS = 300_000
+
+CLAUDE_DESKTOP_PROFILE_REGULAR = "regular"
+CLAUDE_DESKTOP_PROFILE_3P = "3p"
+CLAUDE_DESKTOP_PROFILE_BOTH = "both"
+CLAUDE_DESKTOP_PROFILES = (
+    CLAUDE_DESKTOP_PROFILE_REGULAR,
+    CLAUDE_DESKTOP_PROFILE_3P,
+)
 
 
 def _find_mcp_server_path() -> str | None:
@@ -59,14 +76,86 @@ def _write_json_config(path: Path, config: dict) -> None:
     path.write_text(json.dumps(config, indent=2) + "\n")
 
 
-def _is_configured(config: dict, key: str = "notebooklm-mcp") -> bool:
-    """Check if notebooklm-mcp is already in an mcpServers config."""
-    servers = config.get("mcpServers", {})
-    return key in servers or "notebooklm" in servers
+def _entry_command_tokens(entry: object) -> list[str]:
+    """Return command and argument tokens from a client MCP entry."""
+    if not isinstance(entry, dict):
+        return []
+    command = entry.get("command")
+    if isinstance(command, str):
+        tokens = [command]
+    elif isinstance(command, list):
+        tokens = [str(token) for token in command]
+    else:
+        tokens = []
+    args = entry.get("args")
+    if isinstance(args, list):
+        tokens.extend(str(token) for token in args)
+    return tokens
 
 
-def _add_mcp_server(config: dict, key: str = "notebooklm-mcp", extra: dict | None = None) -> dict:
-    """Add notebooklm-mcp to an mcpServers config dict."""
+def _is_our_mcp_entry(name: str, entry: object) -> bool:
+    """Identify this project's MCP entry without claiming unrelated servers."""
+    if name == MCP_SERVER_NAME or name == "notebooklm-mcp":
+        return True
+    if name != "notebooklm":
+        return False
+
+    for token in _entry_command_tokens(entry):
+        normalized = token.replace("\\", "/").lower()
+        if normalized.rsplit("/", 1)[-1] == MCP_SERVER_CMD:
+            return True
+        if token.lower() in {"notebooklm-mcp-cli", MCP_SERVER_CMD}:
+            return True
+    return False
+
+
+def _configured_mcp_names(servers: object) -> list[str]:
+    """Return recognized Gemini Notebook MCP names in a config mapping."""
+    if not isinstance(servers, dict):
+        return []
+    return [name for name, entry in servers.items() if _is_our_mcp_entry(name, entry)]
+
+
+def _is_configured(config: dict, key: str = MCP_SERVER_NAME) -> bool:
+    """Check if this project's MCP is configured in an ``mcpServers`` mapping."""
+    del key  # Retained for compatibility with callers that specify a preferred key.
+    return bool(_configured_mcp_names(config.get("mcpServers", {})))
+
+
+def _remove_mcp_entries(servers: object) -> bool:
+    """Remove only recognized Gemini Notebook MCP entries from a mapping."""
+    if not isinstance(servers, dict):
+        return False
+    names = _configured_mcp_names(servers)
+    for name in names:
+        del servers[name]
+    return bool(names)
+
+
+def _migrate_legacy_mcp_entry(config: dict, container_key: str) -> bool:
+    """Rename one recognized legacy entry to the current branded name."""
+    servers = config.get(container_key, {})
+    if not isinstance(servers, dict) or MCP_SERVER_NAME in servers:
+        return False
+
+    for name in _configured_mcp_names(servers):
+        if name in LEGACY_MCP_SERVER_NAMES:
+            servers[MCP_SERVER_NAME] = servers.pop(name)
+            return True
+    return False
+
+
+def _cli_output_contains_mcp(output: str) -> bool:
+    """Check CLI output for the current or a known legacy server name."""
+    lower_output = output.lower()
+    return any(
+        re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", lower_output)
+        for name in MCP_SERVER_NAMES
+    )
+
+
+def _add_mcp_server(config: dict, key: str = MCP_SERVER_NAME, extra: dict | None = None) -> dict:
+    """Add Gemini Notebook MCP to an ``mcpServers`` config dict."""
     config.setdefault("mcpServers", {})
     entry = {"command": MCP_SERVER_CMD, "args": []}
     if extra:
@@ -75,16 +164,16 @@ def _add_mcp_server(config: dict, key: str = "notebooklm-mcp", extra: dict | Non
     return config
 
 
-def _is_vscode_mcp_configured(config: dict, key: str = "notebooklm-mcp") -> bool:
-    """Check if notebooklm-mcp is already in a VS Code/Copilot ``servers`` config."""
-    servers = config.get("servers", {})
-    return key in servers or "notebooklm" in servers
+def _is_vscode_mcp_configured(config: dict, key: str = MCP_SERVER_NAME) -> bool:
+    """Check if Gemini Notebook MCP is in a VS Code/Copilot ``servers`` config."""
+    del key
+    return bool(_configured_mcp_names(config.get("servers", {})))
 
 
 def _add_vscode_mcp_server(
-    config: dict, key: str = "notebooklm-mcp", extra: dict | None = None
+    config: dict, key: str = MCP_SERVER_NAME, extra: dict | None = None
 ) -> dict:
-    """Add notebooklm-mcp to a VS Code/Copilot ``servers`` config dict."""
+    """Add Gemini Notebook MCP to a VS Code/Copilot ``servers`` config dict."""
     config.setdefault("servers", {})
     entry = {"command": MCP_SERVER_CMD, "args": []}
     if extra:
@@ -158,16 +247,202 @@ def _github_copilot_config_path() -> Path:
     return Path(".vscode") / "mcp.json"
 
 
-def _claude_desktop_config_path() -> Path:
-    """Get Claude Desktop MCP config path."""
+def _claude_desktop_msix_package_dir() -> Path | None:
+    """Find the installed Claude Desktop MSIX package directory."""
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        return None
+
+    packages_dir = Path(local_app_data) / "Packages"
+    if not packages_dir.is_dir():
+        return None
+
+    package_dirs = sorted(
+        (
+            path
+            for path in packages_dir.iterdir()
+            if path.is_dir()
+            and (
+                path.name.lower().startswith("claude_")
+                or path.name.lower().startswith("anthropic.claude")
+            )
+        ),
+        key=lambda path: path.name.lower(),
+    )
+    if len(package_dirs) != 1:
+        return None
+
+    return package_dirs[0]
+
+
+def _claude_desktop_msix_config_path() -> Path | None:
+    """Find the config path used by a Claude Desktop MSIX installation."""
+    package_dir = _claude_desktop_msix_package_dir()
+    if package_dir is None:
+        return None
+    return package_dir / "LocalCache" / "Roaming" / "Claude" / "claude_desktop_config.json"
+
+
+def _claude_desktop_candidate_paths() -> dict[str, Path]:
+    """Return regular and Relay AI/3P Claude Desktop config candidates."""
     system = platform.system()
     if system == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    elif system == "Windows":
-        appdata = Path(os.environ.get("APPDATA", ""))
-        return appdata / "Claude" / "claude_desktop_config.json"
-    else:
-        return Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+        app_support = Path.home() / "Library" / "Application Support"
+        return {
+            CLAUDE_DESKTOP_PROFILE_REGULAR: app_support / "Claude" / "claude_desktop_config.json",
+            CLAUDE_DESKTOP_PROFILE_3P: app_support / "Claude-3p" / "claude_desktop_config.json",
+        }
+
+    if system == "Windows":
+        regular_path = _claude_desktop_msix_config_path()
+        if regular_path is None:
+            appdata = os.environ.get("APPDATA")
+            appdata_path = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+            regular_path = appdata_path / "Claude" / "claude_desktop_config.json"
+
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        local_app_data_path = (
+            Path(local_app_data) if local_app_data else Path.home() / "AppData" / "Local"
+        )
+        return {
+            CLAUDE_DESKTOP_PROFILE_REGULAR: regular_path,
+            CLAUDE_DESKTOP_PROFILE_3P: local_app_data_path
+            / "Claude-3p"
+            / "claude_desktop_config.json",
+        }
+
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    return {
+        CLAUDE_DESKTOP_PROFILE_REGULAR: config_home / "Claude" / "claude_desktop_config.json",
+        CLAUDE_DESKTOP_PROFILE_3P: config_home / "Claude-3p" / "claude_desktop_config.json",
+    }
+
+
+def _claude_desktop_profile_exists(profile: str, config_path: Path) -> bool:
+    """Return whether a Claude Desktop profile is present to receive config."""
+    if config_path.exists() or config_path.parent.exists():
+        return True
+
+    # An MSIX package proves regular Claude Desktop is installed even when it
+    # has not created its per-user config directory yet.
+    return (
+        profile == CLAUDE_DESKTOP_PROFILE_REGULAR
+        and platform.system() == "Windows"
+        and _claude_desktop_msix_config_path() == config_path
+        and _claude_desktop_msix_package_dir() is not None
+    )
+
+
+def _claude_desktop_profile_paths() -> dict[str, Path]:
+    """Return only Claude Desktop profiles detected on this system."""
+    candidates = _claude_desktop_candidate_paths()
+    return {
+        profile: path
+        for profile, path in candidates.items()
+        if _claude_desktop_profile_exists(profile, path)
+    }
+
+
+def _claude_desktop_process_list() -> str:
+    """Return the running Claude Desktop process command lines."""
+    try:
+        if platform.system() == "Windows":
+            result = subprocess.run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-Command",
+                    "Get-CimInstance Win32_Process -Filter \"Name='Claude.exe' OR Name='claude.exe'\" "
+                    "| Select-Object -ExpandProperty CommandLine",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        else:
+            result = subprocess.run(
+                ["ps", "-axo", "command="],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout
+
+
+def _is_claude_desktop_process_line(line: str) -> bool:
+    """Return whether a process line belongs to the Claude Desktop executable."""
+    normalized = line.lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "claude.app/contents/macos/claude",
+            "claude.exe",
+            "claude-desktop",
+            "claude desktop",
+        )
+    )
+
+
+def _claude_desktop_profile_is_running(
+    profile: str, config_path: Path | None = None, process_list: str | None = None
+) -> bool:
+    """Return whether a selected Claude Desktop profile is currently running."""
+    if profile not in CLAUDE_DESKTOP_PROFILES:
+        return False
+
+    # Ignore synthetic paths supplied by callers/tests; only guard the paths
+    # this command would actually select on the current machine.
+    if config_path is not None and _claude_desktop_candidate_paths().get(profile) != config_path:
+        return False
+
+    snapshot = _claude_desktop_process_list() if process_list is None else process_list
+    lines = [line for line in snapshot.splitlines() if line]
+    claude_lines = [line.lower() for line in lines if _is_claude_desktop_process_line(line)]
+    if not claude_lines:
+        return False
+
+    running_3p = any("claude-3p" in line or "claude_3p" in line for line in claude_lines)
+    return running_3p if profile == CLAUDE_DESKTOP_PROFILE_3P else not running_3p
+
+
+def _ensure_claude_desktop_profiles_stopped(selected: dict[str, Path]) -> bool:
+    """Prevent config writes while Claude Desktop can overwrite them."""
+    running = [
+        profile
+        for profile, config_path in selected.items()
+        if _claude_desktop_profile_is_running(profile, config_path)
+    ]
+    if not running:
+        return True
+
+    labels = ", ".join(
+        "Relay AI / Claude 3P" if profile == CLAUDE_DESKTOP_PROFILE_3P else "regular Claude Desktop"
+        for profile in running
+    )
+    console.print(
+        f"[yellow]Claude Desktop is still running ({labels}). "
+        "No configuration was changed.[/yellow]"
+    )
+    console.print(
+        "[yellow]Fully quit that Claude instance, then run this command again "
+        "before reopening it.[/yellow]"
+    )
+    return False
+
+
+def _claude_desktop_config_path() -> Path:
+    """Get the Claude Desktop MCP config path for the current platform."""
+    candidates = _claude_desktop_candidate_paths()
+    preferred = (
+        CLAUDE_DESKTOP_PROFILE_3P
+        if platform.system() == "Darwin"
+        else CLAUDE_DESKTOP_PROFILE_REGULAR
+    )
+    return candidates[preferred]
 
 
 # =============================================================================
@@ -244,19 +519,21 @@ def _complete_client(ctx, param, incomplete: str) -> list[str]:
 
 
 def _setup_claude_code() -> bool:
-    """Add MCP to Claude Code via `claude mcp add`."""
+    """Add Gemini Notebook MCP to Claude Code via `claude mcp add`."""
     claude_cmd = shutil.which("claude")
     if not claude_cmd:
         console.print("[yellow]Warning:[/yellow] 'claude' command not found in PATH")
         console.print("  Install Claude Code: https://docs.anthropic.com/en/docs/claude-code")
         console.print()
         console.print("  Manual setup — add to [dim]~/.claude/settings.json[/dim]:")
-        console.print('    "mcpServers": { "notebooklm-mcp": { "command": "notebooklm-mcp" } }')
+        console.print(
+            f'    "mcpServers": {{ "{MCP_SERVER_NAME}": {{ "command": "{MCP_SERVER_CMD}" }} }}'
+        )
         return False
 
     try:
         result = subprocess.run(
-            [claude_cmd, "mcp", "add", "-s", "user", "notebooklm-mcp", "--", MCP_SERVER_CMD],
+            [claude_cmd, "mcp", "add", "-s", "user", MCP_SERVER_NAME, "--", MCP_SERVER_CMD],
             capture_output=True,
             text=True,
             timeout=10,
@@ -277,32 +554,124 @@ def _setup_claude_code() -> bool:
         return False
 
 
-def _setup_claude_desktop() -> bool:
-    """Add MCP to Claude Desktop config.
+def _select_claude_desktop_profile_paths(
+    profile: str | None = None, *, configured_only: bool = False
+) -> dict[str, Path]:
+    """Select Claude Desktop profiles for MCP setup or removal."""
+    detected = _claude_desktop_profile_paths()
+    if not detected:
+        console.print(
+            "[yellow]Claude Desktop was not detected on this system. "
+            "No configuration was changed.[/yellow]"
+        )
+        return {}
+
+    if configured_only:
+        detected = {
+            profile_name: config_path
+            for profile_name, config_path in detected.items()
+            if _is_configured(_read_json_config(config_path))
+        }
+        if not detected:
+            console.print(
+                "[dim]No detected Claude Desktop profile contains "
+                f"{MCP_SERVER_NAME}. No configuration was changed.[/dim]"
+            )
+            return {}
+
+    if profile is not None:
+        profile = profile.lower()
+        if profile not in (*CLAUDE_DESKTOP_PROFILES, CLAUDE_DESKTOP_PROFILE_BOTH):
+            console.print(
+                "[red]Error:[/red] Invalid Claude Desktop profile. "
+                "Choose 'regular', '3p', or 'both'."
+            )
+            return {}
+        if profile == CLAUDE_DESKTOP_PROFILE_BOTH:
+            missing = [name for name in CLAUDE_DESKTOP_PROFILES if name not in detected]
+            if missing:
+                console.print(f"[dim]Skipping undetected profile(s): {', '.join(missing)}.[/dim]")
+            return detected
+        if profile not in detected:
+            console.print(
+                f"[yellow]Claude Desktop profile '{profile}' was not detected or does not contain "
+                f"{MCP_SERVER_NAME}. "
+                "No configuration was changed.[/yellow]"
+            )
+            return {}
+        return {profile: detected[profile]}
+
+    if len(detected) == 1:
+        return detected
+
+    options = [
+        (
+            CLAUDE_DESKTOP_PROFILE_REGULAR,
+            f"Regular Claude Desktop — {detected[CLAUDE_DESKTOP_PROFILE_REGULAR]}",
+        ),
+        (
+            CLAUDE_DESKTOP_PROFILE_3P,
+            f"Relay AI / Claude 3P — {detected[CLAUDE_DESKTOP_PROFILE_3P]}",
+        ),
+        (CLAUDE_DESKTOP_PROFILE_BOTH, "Both detected profiles"),
+    ]
+    selected = _prompt_numbered(
+        "Multiple Claude Desktop profiles detected:",
+        options,
+    )
+    if selected == CLAUDE_DESKTOP_PROFILE_BOTH:
+        return detected
+    return {selected: detected[selected]}
+
+
+def _setup_claude_desktop(profile: str | None = None) -> bool:
+    """Add Gemini Notebook MCP to one or more detected Claude Desktop profiles.
 
     Claude Desktop launches servers without inheriting the user's shell
     PATH, so the bare command name often fails to resolve. We write the
     full resolved path to the notebooklm-mcp binary instead.
-    """
-    config_path = _claude_desktop_config_path()
-    config = _read_json_config(config_path)
 
-    if _is_configured(config):
-        console.print("[green]✓[/green] Already configured in Claude Desktop")
+    No config directory is created unless the corresponding Claude Desktop
+    profile is already detected. When both profiles exist, an interactive
+    invocation asks which profile(s) should receive the MCP.
+    """
+    selected = _select_claude_desktop_profile_paths(profile)
+    if not selected:
+        return False
+    if not _ensure_claude_desktop_profiles_stopped(selected):
+        return False
+
+    pending: list[tuple[str, Path, dict]] = []
+    for profile_name, config_path in selected.items():
+        config = _read_json_config(config_path)
+        migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(
+                f"[green]✓[/green] Updated Claude Desktop ({profile_name}) to {MCP_SERVER_NAME}"
+            )
+        if _is_configured(config):
+            console.print(f"[green]✓[/green] Already configured in Claude Desktop ({profile_name})")
+        else:
+            pending.append((profile_name, config_path, config))
+
+    if not pending:
         return True
 
     binary_path = _find_mcp_server_path()
     if not binary_path:
         console.print(
-            "[yellow]Warning:[/yellow] notebooklm-mcp not found in PATH, "
-            "using command name instead (may not resolve in Claude Desktop)"
+            "[red]Error:[/red] notebooklm-mcp was not found in PATH. "
+            "Install it first or add its full path to Claude Desktop manually."
         )
-        binary_path = MCP_SERVER_CMD
+        console.print("  Find the installed binary with: [dim]which notebooklm-mcp[/dim]")
+        return False
 
-    _add_mcp_server(config, extra={"command": binary_path})
-    _write_json_config(config_path, config)
-    console.print("[green]✓[/green] Added to Claude Desktop")
-    console.print(f"  [dim]{config_path}[/dim]")
+    for profile_name, config_path, config in pending:
+        _add_mcp_server(config, extra={"command": binary_path})
+        _write_json_config(config_path, config)
+        console.print(f"[green]✓[/green] Added to Claude Desktop ({profile_name})")
+        console.print(f"  [dim]{config_path}[/dim]")
     return True
 
 
@@ -311,8 +680,13 @@ def _setup_gemini() -> bool:
     config_path = _gemini_config_path()
     config = _read_json_config(config_path)
 
-    if _is_configured(config, "notebooklm"):
-        console.print("[green]✓[/green] Already configured in Gemini CLI")
+    migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
+    if _is_configured(config):
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated Gemini CLI to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in Gemini CLI")
         return True
 
     console.print(
@@ -320,11 +694,11 @@ def _setup_gemini() -> bool:
         "server to function. This grants the server permission to run shell commands and "
         "access files without per-action prompts."
     )
-    if not Confirm.ask("Grant elevated trust to notebooklm-mcp in Gemini CLI?", default=True):
+    if not Confirm.ask(f"Grant elevated trust to {MCP_SERVER_NAME} in Gemini CLI?", default=True):
         console.print("[yellow]Skipped.[/yellow] Re-run setup to add trust later.")
         return False
 
-    _add_mcp_server(config, key="notebooklm", extra={"trust": True})
+    _add_mcp_server(config, extra={"trust": True})
     _write_json_config(config_path, config)
     console.print("[green]✓[/green] Added to Gemini CLI")
     console.print(f"  [dim]{config_path}[/dim]")
@@ -336,8 +710,13 @@ def _setup_github_copilot() -> bool:
     config_path = _github_copilot_config_path()
     config = _read_json_config(config_path)
 
+    migrated = _migrate_legacy_mcp_entry(config, "servers")
     if _is_vscode_mcp_configured(config):
-        console.print("[green]✓[/green] Already configured in GitHub Copilot")
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated GitHub Copilot to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in GitHub Copilot")
         return True
 
     _add_vscode_mcp_server(config)
@@ -352,8 +731,13 @@ def _setup_cursor(level: str = "user") -> bool:
     config_path = _cursor_config_path(level)
     config = _read_json_config(config_path)
 
+    migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
     if _is_configured(config):
-        console.print(f"[green]✓[/green] Already configured in Cursor ({level})")
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated Cursor ({level}) to {MCP_SERVER_NAME}")
+        else:
+            console.print(f"[green]✓[/green] Already configured in Cursor ({level})")
         return True
 
     _add_mcp_server(config)
@@ -368,8 +752,13 @@ def _setup_windsurf() -> bool:
     config_path = _windsurf_config_path()
     config = _read_json_config(config_path)
 
+    migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
     if _is_configured(config):
-        console.print("[green]✓[/green] Already configured in Windsurf")
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated Windsurf to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in Windsurf")
         return True
 
     _add_mcp_server(config)
@@ -384,8 +773,13 @@ def _setup_cline() -> bool:
     config_path = _cline_config_path()
     config = _read_json_config(config_path)
 
+    migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
     if _is_configured(config):
-        console.print("[green]✓[/green] Already configured in Cline CLI")
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated Cline CLI to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in Cline CLI")
         return True
 
     _add_mcp_server(config)
@@ -400,11 +794,16 @@ def _setup_antigravity() -> bool:
     config_path = _antigravity_config_path()
     config = _read_json_config(config_path)
 
-    if _is_configured(config, "notebooklm"):
-        console.print("[green]✓[/green] Already configured in Antigravity")
+    migrated = _migrate_legacy_mcp_entry(config, "mcpServers")
+    if _is_configured(config):
+        if migrated:
+            _write_json_config(config_path, config)
+            console.print(f"[green]✓[/green] Updated Antigravity to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in Antigravity")
         return True
 
-    _add_mcp_server(config, key="notebooklm")
+    _add_mcp_server(config)
     _write_json_config(config_path, config)
     console.print("[green]✓[/green] Added to Antigravity")
     console.print(f"  [dim]{config_path}[/dim]")
@@ -417,7 +816,7 @@ def _setup_codex() -> bool:
     if codex_cmd:
         try:
             result = subprocess.run(
-                [codex_cmd, "mcp", "add", "notebooklm-mcp", "--", MCP_SERVER_CMD],
+                [codex_cmd, "mcp", "add", MCP_SERVER_NAME, "--", MCP_SERVER_CMD],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -445,7 +844,7 @@ def _setup_codex() -> bool:
                 content = config_path.read_text(encoding="utf-8")
                 config = tomllib.loads(content)
                 mcp_servers = config.get("mcp_servers", {})
-                if "notebooklm" in mcp_servers or "notebooklm-mcp" in mcp_servers:
+                if _configured_mcp_names(mcp_servers):
                     console.print("[green]✓[/green] Already configured in Codex CLI")
                     return True
             except Exception:
@@ -454,8 +853,8 @@ def _setup_codex() -> bool:
             content = ""
 
         section = """
-# NotebookLM MCP server
-[mcp_servers.notebooklm]
+# Gemini Notebook MCP server
+[mcp_servers.gemini-notebook-mcp]
 command = "notebooklm-mcp"
 args = []
 enabled = true
@@ -479,15 +878,19 @@ def _setup_opencode() -> bool:
     config_path = _opencode_config_path()
     config = _read_json_config(config_path)
 
+    migrated = _migrate_legacy_mcp_entry(config, "mcp")
     mcp = config.get("mcp", {})
-    if "notebooklm" in mcp or "notebooklm-mcp" in mcp:
+    if _configured_mcp_names(mcp):
         # Still ensure timeout is set even if server entry already exists
         _ensure_opencode_timeout(config)
+        if migrated:
+            console.print(f"[green]✓[/green] Updated OpenCode to {MCP_SERVER_NAME}")
+        else:
+            console.print("[green]✓[/green] Already configured in OpenCode")
         _write_json_config(config_path, config)
-        console.print("[green]✓[/green] Already configured in OpenCode")
         return True
 
-    mcp["notebooklm"] = {
+    mcp[MCP_SERVER_NAME] = {
         "type": "local",
         "command": [MCP_SERVER_CMD],
         "enabled": True,
@@ -523,9 +926,11 @@ def _detect_tool(client_id: str) -> bool:
     binary names and root config directories.
     """
     _home = Path.home()
+    if client_id == "claude-desktop":
+        return bool(_claude_desktop_profile_paths())
+
     detection: dict[str, tuple[str | None, list[Path]]] = {
         "claude-code": ("claude", [_home / ".claude"]),
-        "claude-desktop": (None, [_claude_desktop_config_path().parent]),
         "gemini": ("gemini", [_gemini_config_path().parent]),
         "cursor": ("cursor", [_home / ".cursor"]),
         "github-copilot": ("code", [_github_copilot_config_path().parent]),
@@ -556,15 +961,17 @@ def _is_already_configured(client_id: str) -> bool:
                     text=True,
                     timeout=5,
                 )
-                return "notebooklm" in result.stdout.lower()
+                return _cli_output_contains_mcp(result.stdout)
             return False
 
         elif client_id == "claude-desktop":
-            config = _read_json_config(_claude_desktop_config_path())
-            return _is_configured(config)
+            paths = _claude_desktop_profile_paths()
+            return bool(paths) and all(
+                _is_configured(_read_json_config(path)) for path in paths.values()
+            )
         elif client_id == "gemini":
             config = _read_json_config(_gemini_config_path())
-            return _is_configured(config, "notebooklm")
+            return _is_configured(config)
         elif client_id == "github-copilot":
             config = _read_json_config(_github_copilot_config_path())
             return _is_vscode_mcp_configured(config)
@@ -579,7 +986,7 @@ def _is_already_configured(client_id: str) -> bool:
             return _is_configured(config)
         elif client_id == "antigravity":
             config = _read_json_config(_antigravity_config_path())
-            return _is_configured(config, "notebooklm")
+            return _is_configured(config)
         elif client_id == "codex":
             codex_cmd = shutil.which("codex")
             if codex_cmd:
@@ -589,18 +996,18 @@ def _is_already_configured(client_id: str) -> bool:
                     text=True,
                     timeout=5,
                 )
-                return "notebooklm" in result.stdout.lower()
+                return _cli_output_contains_mcp(result.stdout)
             else:
                 # Check config.toml directly
                 toml_path = _codex_config_path() / "config.toml"
                 if toml_path.exists():
                     config = tomllib.loads(toml_path.read_text(encoding="utf-8"))
                     mcp = config.get("mcp_servers", {})
-                    return "notebooklm" in mcp or "notebooklm-mcp" in mcp
+                    return bool(_configured_mcp_names(mcp))
         elif client_id == "opencode":
             config = _read_json_config(_opencode_config_path())
             mcp = config.get("mcp", {})
-            return "notebooklm" in mcp or "notebooklm-mcp" in mcp
+            return bool(_configured_mcp_names(mcp))
     except Exception:
         pass
     return False
@@ -760,7 +1167,7 @@ def _setup_json() -> None:
         path_choice = _prompt_numbered(
             "Command format:",
             [
-                ("name", "Command name (notebooklm-mcp)"),
+                ("name", f"Command name ({MCP_SERVER_CMD})"),
                 ("full", "Full path to binary"),
             ],
         )
@@ -794,9 +1201,9 @@ def _setup_json() -> None:
             server_entry = {"command": MCP_SERVER_CMD}
 
     if config_scope == "new":
-        output = {"mcpServers": {"notebooklm-mcp": server_entry}}
+        output = {"mcpServers": {MCP_SERVER_NAME: server_entry}}
     else:
-        output = {"notebooklm-mcp": server_entry}
+        output = {MCP_SERVER_NAME: server_entry}
 
     json_str = json.dumps(output, indent=2)
 
@@ -829,9 +1236,14 @@ def setup_add(
         help="AI tool to configure, or 'all' to scan & configure interactively",
         shell_complete=_complete_client,
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Claude Desktop profile: regular, 3p, or both",
+    ),
 ) -> None:
     """
-    Add NotebookLM MCP server to an AI tool.
+    Add Gemini Notebook MCP server to an AI tool.
 
     Configures the MCP server transport so the AI tool can access
     NotebookLM features (notebooks, sources, audio, research, etc).
@@ -839,6 +1251,7 @@ def setup_add(
     Examples:
         nlm setup add claude-code
         nlm setup add claude-desktop
+        nlm setup add claude-desktop --profile 3p
         nlm setup add gemini
         nlm setup add github-copilot
         nlm setup add cursor
@@ -856,6 +1269,9 @@ def setup_add(
         return
 
     if client == "all":
+        if profile is not None:
+            console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
+            raise typer.Exit(1)
         _setup_all()
         return
 
@@ -865,8 +1281,12 @@ def setup_add(
         console.print(f"Available clients: {valid}")
         raise typer.Exit(1)
 
+    if profile is not None and client != "claude-desktop":
+        console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
+        raise typer.Exit(1)
+
     info = CLIENT_REGISTRY[client]
-    console.print(f"\n[bold]{info['name']}[/bold] — Adding NotebookLM MCP\n")
+    console.print(f"\n[bold]{info['name']}[/bold] — Adding Gemini Notebook MCP\n")
 
     if not info["has_auto_setup"]:
         console.print(f"[yellow]Note:[/yellow] {info['name']} doesn't use MCP server config.")
@@ -888,7 +1308,10 @@ def setup_add(
         "opencode": _setup_opencode,
     }
 
-    success = setup_fn[client]()
+    if client == "claude-desktop":
+        success = _setup_claude_desktop(profile=profile)
+    else:
+        success = setup_fn[client]()
     if success:
         console.print(f"\n[dim]Restart {info['name']} to activate the MCP server.[/dim]")
 
@@ -900,18 +1323,27 @@ def setup_remove(
         help="AI tool to remove MCP from, or 'all' to remove from every configured tool",
         shell_complete=_complete_client,
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Claude Desktop profile: regular, 3p, or both",
+    ),
 ) -> None:
     """
-    Remove NotebookLM MCP server from an AI tool.
+    Remove Gemini Notebook MCP server from an AI tool.
 
     Examples:
         nlm setup remove gemini
+        nlm setup remove claude-desktop --profile 3p
         nlm setup remove github-copilot
         nlm setup remove all
     """
     client = CLIENT_ALIASES.get(client, client)
 
     if client == "all":
+        if profile is not None:
+            console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
+            raise typer.Exit(1)
         _remove_all()
         return
 
@@ -921,27 +1353,68 @@ def setup_remove(
         console.print(f"Available clients: {valid}")
         raise typer.Exit(1)
 
-    _remove_single(client)
+    if profile is not None and client != "claude-desktop":
+        console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
+        raise typer.Exit(1)
+
+    _remove_single(client, profile=profile)
 
 
-def _remove_single(client: str) -> bool:
+def _remove_single(client: str, profile: str | None = None) -> bool:
     """Remove MCP from a single client. Returns True if removed."""
+    if client == "claude-desktop":
+        selected = _select_claude_desktop_profile_paths(profile, configured_only=True)
+        if not selected:
+            return False
+        if not _ensure_claude_desktop_profiles_stopped(selected):
+            return False
+
+        removed_any = False
+        for profile_name, config_path in selected.items():
+            config = _read_json_config(config_path)
+            servers = config.get("mcpServers", {})
+            removed = _remove_mcp_entries(servers)
+
+            if removed:
+                config["mcpServers"] = servers
+                _write_json_config(config_path, config)
+                console.print(f"[green]✓[/green] Removed from Claude Desktop ({profile_name})")
+                removed_any = True
+            else:
+                console.print(
+                    f"[dim]Gemini Notebook MCP was not configured in Claude Desktop "
+                    f"({profile_name}).[/dim]"
+                )
+        return removed_any
+
     # Client-specific removal via CLI (preferred)
     if client == "claude-code":
         claude_cmd = shutil.which("claude")
         if claude_cmd:
             try:
                 result = subprocess.run(
-                    [claude_cmd, "mcp", "remove", "-s", "user", "notebooklm-mcp"],
+                    [claude_cmd, "mcp", "remove", "-s", "user", MCP_SERVER_NAME],
                     capture_output=True,
                     text=True,
                     timeout=10,
                 )
-                if result.returncode == 0:
+                removed = result.returncode == 0
+                last_error = result.stderr.strip()
+                for legacy_name in LEGACY_MCP_SERVER_NAMES:
+                    legacy_result = subprocess.run(
+                        [claude_cmd, "mcp", "remove", "-s", "user", legacy_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    removed = legacy_result.returncode == 0 or removed
+                    if legacy_result.stderr.strip():
+                        last_error = legacy_result.stderr.strip()
+                if removed:
                     console.print("[green]✓[/green] Removed from Claude Code")
                     return True
                 else:
-                    console.print(f"[yellow]Note:[/yellow] {result.stderr.strip()}")
+                    console.print(f"[yellow]Note:[/yellow] {last_error}")
                     return False
             except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
                 console.print(f"[yellow]Warning:[/yellow] Could not run claude command: {e}")
@@ -956,16 +1429,28 @@ def _remove_single(client: str) -> bool:
         if codex_cmd:
             try:
                 result = subprocess.run(
-                    [codex_cmd, "mcp", "remove", "notebooklm-mcp"],
+                    [codex_cmd, "mcp", "remove", MCP_SERVER_NAME],
                     capture_output=True,
                     text=True,
                     timeout=10,
                 )
-                if result.returncode == 0:
+                removed = result.returncode == 0
+                last_error = result.stderr.strip()
+                for legacy_name in LEGACY_MCP_SERVER_NAMES:
+                    legacy_result = subprocess.run(
+                        [codex_cmd, "mcp", "remove", legacy_name],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    removed = legacy_result.returncode == 0 or removed
+                    if legacy_result.stderr.strip():
+                        last_error = legacy_result.stderr.strip()
+                if removed:
                     console.print("[green]✓[/green] Removed from Codex CLI")
                     return True
                 else:
-                    console.print(f"[yellow]Note:[/yellow] {result.stderr.strip()}")
+                    console.print(f"[yellow]Note:[/yellow] {last_error}")
                     return False
             except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
                 console.print(f"[yellow]Warning:[/yellow] Could not run codex command: {e}")
@@ -982,11 +1467,7 @@ def _remove_single(client: str) -> bool:
             return False
         config = _read_json_config(config_path)
         mcp = config.get("mcp", {})
-        removed = False
-        for key in ["notebooklm-mcp", "notebooklm"]:
-            if key in mcp:
-                del mcp[key]
-                removed = True
+        removed = _remove_mcp_entries(mcp)
         if removed:
             config["mcp"] = mcp
             # Clean up experimental.mcp_timeout if no other MCP servers remain
@@ -1001,7 +1482,7 @@ def _remove_single(client: str) -> bool:
             console.print("[green]✓[/green] Removed from OpenCode")
             return True
         else:
-            console.print("[dim]NotebookLM MCP was not configured in OpenCode.[/dim]")
+            console.print("[dim]Gemini Notebook MCP was not configured in OpenCode.[/dim]")
             return False
 
     # GitHub Copilot uses VS Code's ``servers`` key in .vscode/mcp.json
@@ -1013,11 +1494,7 @@ def _remove_single(client: str) -> bool:
         config = _read_json_config(config_path)
         servers = config.get("servers", {})
 
-        removed = False
-        for key in ["notebooklm-mcp", "notebooklm"]:
-            if key in servers:
-                del servers[key]
-                removed = True
+        removed = _remove_mcp_entries(servers)
 
         if removed:
             config["servers"] = servers
@@ -1025,12 +1502,11 @@ def _remove_single(client: str) -> bool:
             console.print("[green]✓[/green] Removed from GitHub Copilot")
             return True
 
-        console.print("[dim]NotebookLM MCP was not configured in GitHub Copilot.[/dim]")
+        console.print("[dim]Gemini Notebook MCP was not configured in GitHub Copilot.[/dim]")
         return False
 
     # JSON config-based clients
     config_paths = {
-        "claude-desktop": _claude_desktop_config_path(),
         "gemini": _gemini_config_path(),
         "cursor": _cursor_config_path(),
         "windsurf": _windsurf_config_path(),
@@ -1046,11 +1522,7 @@ def _remove_single(client: str) -> bool:
     config = _read_json_config(config_path)
     servers = config.get("mcpServers", {})
 
-    removed = False
-    for key in ["notebooklm-mcp", "notebooklm"]:
-        if key in servers:
-            del servers[key]
-            removed = True
+    removed = _remove_mcp_entries(servers)
 
     if removed:
         _write_json_config(config_path, config)
@@ -1058,7 +1530,7 @@ def _remove_single(client: str) -> bool:
         return True
     else:
         console.print(
-            f"[dim]NotebookLM MCP was not configured in {CLIENT_REGISTRY[client]['name']}.[/dim]"
+            f"[dim]Gemini Notebook MCP was not configured in {CLIENT_REGISTRY[client]['name']}.[/dim]"
         )
         return False
 
@@ -1076,7 +1548,7 @@ def _remove_all() -> None:
             configured.append((client_id, info))
 
     if not configured:
-        console.print("[dim]No tools have NotebookLM MCP configured.[/dim]")
+        console.print("[dim]No tools have Gemini Notebook MCP configured.[/dim]")
         return
 
     # Show what will be removed
@@ -1091,7 +1563,9 @@ def _remove_all() -> None:
 
     # Strong warning and confirmation
     console.print()
-    console.print("[bold red]⚠  WARNING:[/bold red] This will remove the NotebookLM MCP server")
+    console.print(
+        "[bold red]⚠  WARNING:[/bold red] This will remove the Gemini Notebook MCP server"
+    )
     console.print(f"from [bold]{len(configured)}[/bold] tool(s) listed above.")
     console.print()
 
@@ -1119,7 +1593,7 @@ def setup_list() -> None:
     """
     Show supported AI tools and their MCP configuration status.
     """
-    table = Table(title="NotebookLM MCP Server Configuration")
+    table = Table(title="Gemini Notebook MCP Server Configuration")
     table.add_column("Client", style="cyan")
     table.add_column("Description")
     table.add_column("MCP Status", justify="center")
@@ -1140,7 +1614,7 @@ def setup_list() -> None:
                         text=True,
                         timeout=5,
                     )
-                    if "notebooklm" in result.stdout.lower():
+                    if _cli_output_contains_mcp(result.stdout):
                         status = "[green]✓[/green]"
                 except (subprocess.TimeoutExpired, OSError):
                     status = "[dim]?[/dim]"
@@ -1149,16 +1623,40 @@ def setup_list() -> None:
                 config_path = "not installed"
 
         elif client_id == "claude-desktop":
-            path = _claude_desktop_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
-            config_path = str(path).replace(str(Path.home()), "~")
+            profile_paths = _claude_desktop_profile_paths()
+            if not profile_paths:
+                table.add_row(
+                    str(info["name"]),
+                    str(info["description"]),
+                    "[dim]-[/dim]",
+                    "not installed",
+                )
+                continue
+
+            profile_labels = {
+                CLAUDE_DESKTOP_PROFILE_REGULAR: "regular",
+                CLAUDE_DESKTOP_PROFILE_3P: "Relay AI / 3P",
+            }
+            for profile_name in CLAUDE_DESKTOP_PROFILES:
+                path = profile_paths.get(profile_name)
+                if path is None:
+                    continue
+                profile_status = "[dim]-[/dim]"
+                if _is_configured(_read_json_config(path)):
+                    profile_status = "[green]✓[/green]"
+                display_path = str(path).replace(str(Path.home()), "~")
+                table.add_row(
+                    f"{info['name']} ({profile_labels[profile_name]})",
+                    str(info["description"]),
+                    profile_status,
+                    display_path,
+                )
+            continue
 
         elif client_id == "gemini":
             path = _gemini_config_path()
             config = _read_json_config(path)
-            if _is_configured(config, "notebooklm"):
+            if _is_configured(config):
                 status = "[green]✓[/green]"
             config_path = str(path).replace(str(Path.home()), "~")
 
@@ -1193,7 +1691,7 @@ def setup_list() -> None:
         elif client_id == "antigravity":
             path = _antigravity_config_path()
             config = _read_json_config(path)
-            if _is_configured(config, "notebooklm"):
+            if _is_configured(config):
                 status = "[green]✓[/green]"
             config_path = str(path).replace(str(Path.home()), "~")
 
@@ -1207,7 +1705,7 @@ def setup_list() -> None:
                         text=True,
                         timeout=5,
                     )
-                    if "notebooklm" in result.stdout.lower():
+                    if _cli_output_contains_mcp(result.stdout):
                         status = "[green]✓[/green]"
                 except (subprocess.TimeoutExpired, OSError):
                     status = "[dim]?[/dim]"
@@ -1219,7 +1717,7 @@ def setup_list() -> None:
             path = _opencode_config_path()
             config = _read_json_config(path)
             mcp = config.get("mcp", {})
-            if "notebooklm" in mcp or "notebooklm-mcp" in mcp:
+            if _configured_mcp_names(mcp):
                 status = "[green]✓[/green]"
             config_path = str(path).replace(str(Path.home()), "~")
 

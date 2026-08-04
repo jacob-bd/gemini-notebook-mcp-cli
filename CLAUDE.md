@@ -144,7 +144,13 @@ src/notebooklm_tools/
 
 **Executables:**
 - `nlm` - Command-line interface
-- `notebooklm-mcp` - The MCP server
+- `notebooklm-mcp` - The Gemini Notebook MCP server executable
+
+**Configured MCP name:** `gemini-notebook-mcp` (the executable name remains
+`notebooklm-mcp` for compatibility). Claude Desktop setup detects regular and
+Relay AI/3P profiles, never creates missing profiles, and refuses to write
+while the selected Claude instance is running. User-level skill installation
+also requires the target tool to be detected.
 
 ## MCP Tools Provided
 
@@ -248,7 +254,7 @@ Only read API_REFERENCE.md when:
 **[docs/MCP_CLI_TEST_PLAN.md](./docs/MCP_CLI_TEST_PLAN.md)**
 
 This includes:
-- Step-by-step test cases for all 29 MCP tools and CLI commands
+- Step-by-step test cases for all 43 MCP tools and CLI commands
 - Authentication and basic operations tests
 - Source management and Drive sync tests
 - Studio content generation tests (audio, video, infographics, etc.)

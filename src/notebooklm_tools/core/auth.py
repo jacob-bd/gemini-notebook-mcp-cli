@@ -609,7 +609,61 @@ class AuthManager:
                 hint="Make sure the file contains cookies from a NotebookLM session.",
             )
 
-        return self.save_profile(cookies)
+        # Detect the host this session actually lands on. Google rolls the
+        # "Gemini Notebook" rebrand out per-account, redirecting signed-in
+        # accounts from notebooklm.google.com to notebook.google.com (and the
+        # cloud variant). The default base URL stays notebooklm.google.com, so
+        # without recording the real host, manual-imported credentials keep
+        # hitting the old domain and get bounced to accounts.google.com even
+        # when the cookies are perfectly valid. See issue #292.
+        base_host = self._detect_session_base_host(cookies)
+
+        return self.save_profile(cookies, base_host=base_host)
+
+    @staticmethod
+    def _detect_session_base_host(
+        cookies: dict[str, str] | list[dict[str, Any]],
+    ) -> str | None:
+        """Find which Gemini Notebook host the cookies actually authenticate on.
+
+        Google rolls the "Gemini Notebook" rebrand out per-account, redirecting
+        signed-in accounts from notebooklm.google.com to notebook.google.com (and
+        the cloud variant). The default base URL stays notebooklm.google.com, so
+        without recording the real host, manual-imported credentials keep hitting
+        the old domain and get bounced to accounts.google.com even when the
+        cookies are valid (see issue #292).
+
+        A naive homepage fetch is rejected by Google's replay protection even for
+        valid cookies, so instead we try a lightweight list_notebooks() call
+        against each rebrand candidate and return the first host that succeeds.
+        """
+        from notebooklm_tools.utils.config import _ALLOWED_BASE_HOSTS
+
+        # Always include the default host first; only probe alternatives when we
+        # know they exist. Keep the order deterministic and cheap.
+        candidates = ["notebooklm.google.com"]
+        for h in sorted(_ALLOWED_BASE_HOSTS):
+            if h != "notebooklm.google.com" and h not in candidates:
+                candidates.append(h)
+
+        flat = _flatten_cookie_input(cookies)
+        for host in candidates:
+            try:
+                from notebooklm_tools.core.client import NotebookLMClient
+
+                with NotebookLMClient(
+                    cookies=flat,
+                    base_host=host,
+                    profile_name=None,
+                ) as client:
+                    client.list_notebooks()
+                if host != "notebooklm.google.com":
+                    logger.info(f"Detected rebranded session host: {host}")
+                    return host
+                return None
+            except Exception as e:
+                logger.debug(f"Session host probe failed for {host}: {e}")
+        return None
 
 
 def get_auth_manager(profile: str | None = None) -> AuthManager:

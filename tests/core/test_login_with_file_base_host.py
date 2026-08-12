@@ -5,9 +5,7 @@ from notebooklm_tools.core.auth import AuthManager
 
 def _write_cookies(tmp_path: Path) -> Path:
     cookie_file = tmp_path / "cookies.txt"
-    cookie_file.write_text(
-        "SID=sid; HSID=h; SSID=s; APISID=a; SAPISID=sp", encoding="utf-8"
-    )
+    cookie_file.write_text("SID=sid; HSID=h; SSID=s; APISID=a; SAPISID=sp", encoding="utf-8")
     return cookie_file
 
 
@@ -35,9 +33,7 @@ def test_login_with_file_records_rebranded_base_host(monkeypatch, tmp_path):
                 return []
             raise RuntimeError("auth rejected on legacy host")
 
-    monkeypatch.setattr(
-        "notebooklm_tools.core.client.NotebookLMClient", FakeClient
-    )
+    monkeypatch.setattr("notebooklm_tools.core.client.NotebookLMClient", FakeClient)
 
     manager = AuthManager("default")
     manager.profile_dir.mkdir(parents=True, exist_ok=True)
@@ -66,9 +62,7 @@ def test_login_with_file_keeps_default_host_when_no_rebrand(monkeypatch, tmp_pat
                 return []
             raise RuntimeError("unexpected host probe")
 
-    monkeypatch.setattr(
-        "notebooklm_tools.core.client.NotebookLMClient", FakeClient
-    )
+    monkeypatch.setattr("notebooklm_tools.core.client.NotebookLMClient", FakeClient)
 
     manager = AuthManager("default")
     manager.profile_dir.mkdir(parents=True, exist_ok=True)

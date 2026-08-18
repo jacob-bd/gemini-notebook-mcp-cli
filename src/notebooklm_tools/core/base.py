@@ -25,7 +25,7 @@ from notebooklm_tools.utils.config import get_base_url
 
 from . import constants
 from .data_types import ConversationTurn
-from .errors import ClientAuthenticationError as AuthenticationError
+from .errors import ClientAuthenticationError as AuthenticationError, TransientBackendError
 from .errors import ResourceExhaustedError, RPCDriftError, RPCError
 from .retry import (
     DEFAULT_BASE_DELAY,
@@ -142,6 +142,29 @@ def _extract_user_message(detail_data: Any, _depth: int = 0) -> str:
 # Timeout configuration (seconds)
 DEFAULT_TIMEOUT = 30.0  # Default for most operations
 SOURCE_ADD_TIMEOUT = 120.0  # Extended timeout for all source operations
+
+
+def _is_unreachable_failure(exc: Exception | None) -> bool:
+    """Return True when the evidence shows an unreachable backend, not expiry.
+
+    A refresh can fail because the saved cookies are genuinely rejected, or
+    because the homepage fetch never completed. Only the first case justifies
+    telling the user to log in again.
+    """
+    if exc is None:
+        return False
+    if isinstance(exc, (httpx.TransportError, httpx.TimeoutException)):
+        return True
+    if isinstance(exc, OSError):
+        return True
+    text = str(exc).lower()
+    if 'accounts.google.com' in text or 'expired' in text:
+        return False
+    return any(
+        marker in text
+        for marker in ('could not reach', 'network', 'timed out', 'timeout',
+                       'connection', 'temporarily unavailable', 'dns')
+    )
 
 
 class BaseClient:
@@ -1047,15 +1070,21 @@ class BaseClient:
         # -- Auth recovery (reached only for 401/403 HTTP or RPC Error 16) --
 
         # Layer 1: Refresh CSRF/session tokens (first retry only)
+        refresh_failure: Exception | None = None
         if not _retry:
             try:
                 self._refresh_auth_tokens()
                 with self._state_lock:
                     self._client = None
                 return self._call_rpc(rpc_id, params, path, timeout, _retry=True)
-            except ValueError:
-                # CSRF refresh failed (cookies expired) - continue to layer 2
-                pass
+            except ValueError as exc:
+                # Refresh failed. This is NOT proof of expiry: the same path is
+                # reached when the homepage fetch never completed. Preserve the
+                # cause so the final message can stay truthful.
+                refresh_failure = exc
+            except (httpx.HTTPError, OSError) as exc:
+                # Transport failure during refresh. Never report this as expiry.
+                refresh_failure = exc
 
         # Layer 2 & 3: Reload from disk or run headless auth (deep retry)
         if not _deep_retry and self._try_reload_or_headless_auth():
@@ -1063,7 +1092,18 @@ class BaseClient:
                 self._client = None
             return self._call_rpc(rpc_id, params, path, timeout, _retry=True, _deep_retry=True)
 
-        # All recovery attempts failed
+        # All recovery attempts failed.
+        # Distinguish 'credentials are rejected' from 'the backend was unreachable'.
+        # Reporting an unreachable backend as an expired session sends users to a
+        # re-login that cannot fix the problem, and makes automated monitors raise
+        # false credential alerts.
+        if _is_unreachable_failure(refresh_failure):
+            raise TransientBackendError(
+                "Could not reach NotebookLM while verifying the session "
+                f"({type(refresh_failure).__name__}). Saved credentials may still be "
+                "valid. Check connectivity and retry; only run 'nlm login' if this "
+                "persists after the backend is reachable again."
+            ) from refresh_failure
         msg = (
             "Authentication expired. Run 'nlm login' in your terminal to re-authenticate. "
             "MCP users: the server should auto-detect the new credentials; "

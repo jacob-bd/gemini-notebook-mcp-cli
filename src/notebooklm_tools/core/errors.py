@@ -91,6 +91,16 @@ class ArtifactNotFoundError(ArtifactError):
         self.artifact_type = artifact_type
 
 
+class TransientBackendError(Exception):
+    """The backend could not be reached while verifying or refreshing a session.
+
+    This is deliberately NOT an authentication error. Credentials may still be
+    valid; the request simply never reached a verdict. Callers and monitors must
+    not treat this as expiry, because re-authentication cannot fix a transport
+    failure and a false expiry signal causes unnecessary interactive logins.
+    """
+
+
 class ClientAuthenticationError(Exception):
     """Raised when authentication fails (HTTP 401/403 or RPC Error 16).
 

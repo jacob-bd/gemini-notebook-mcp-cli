@@ -4,6 +4,7 @@
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 
@@ -33,6 +34,35 @@ def test_base_client_init_with_csrf():
         client = BaseClient(cookies={"test": "cookie"}, csrf_token="test_token")
         mock_refresh.assert_not_called()
         assert client.csrf_token == "test_token"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ValueError("Failed to fetch NotebookLM page: HTTP 503"),
+        httpx.ReadTimeout("The read operation timed out"),
+        OSError("dns lookup failed"),
+    ],
+)
+def test_unreachable_failure_classifies_transport_and_server_errors(failure):
+    """Backend transport and 5xx failures must not be treated as auth expiry."""
+    from notebooklm_tools.core.base import _is_unreachable_failure
+
+    assert _is_unreachable_failure(failure) is True
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ValueError("Authentication expired. accounts.google.com login redirect"),
+        ValueError("Authentication expired"),
+    ],
+)
+def test_unreachable_failure_rejects_explicit_auth_expiry(failure):
+    """Explicit rejection evidence must continue through auth recovery."""
+    from notebooklm_tools.core.base import _is_unreachable_failure
+
+    assert _is_unreachable_failure(failure) is False
 
 
 def test_build_request_body():

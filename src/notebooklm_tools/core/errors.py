@@ -91,6 +91,15 @@ class ArtifactNotFoundError(ArtifactError):
         self.artifact_type = artifact_type
 
 
+class TransientBackendError(NotebookLMError):
+    """Raised when the backend cannot be reached to verify authentication.
+
+    This is deliberately not an authentication error: the saved credentials
+    may still be valid, and asking the user to log in again cannot repair a
+    transport or backend outage.
+    """
+
+
 class ClientAuthenticationError(Exception):
     """Raised when authentication fails (HTTP 401/403 or RPC Error 16).
 

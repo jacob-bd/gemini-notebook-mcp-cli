@@ -5,6 +5,7 @@ import httpx
 import pytest
 
 from notebooklm_tools.core.client import AuthenticationError, NotebookLMClient
+from notebooklm_tools.core.errors import TransientBackendError
 
 
 @pytest.fixture
@@ -75,6 +76,52 @@ class TestNotebookLMClientAuth:
 
             # Verify post was called twice
             assert http_client.post.call_count == 2
+
+    def test_auth_recovery_reports_unreachable_backend(self, mock_client):
+        """A failed homepage refresh must not be reported as expired auth."""
+        with (
+            patch.object(mock_client, "_get_client") as mock_get_client,
+            patch.object(
+                mock_client,
+                "_refresh_auth_tokens",
+                side_effect=ValueError("Failed to fetch NotebookLM page: HTTP 503"),
+            ),
+            patch.object(mock_client, "_try_reload_or_headless_auth", return_value=False),
+        ):
+            http_client = MagicMock(spec=httpx.Client)
+            mock_get_client.return_value = http_client
+
+            req = httpx.Request("POST", "https://notebooklm.google.com/batchexecute")
+            resp = httpx.Response(401, request=req)
+            http_client.post.side_effect = httpx.HTTPStatusError(
+                "Unauthorized", request=req, response=resp
+            )
+
+            with pytest.raises(TransientBackendError, match="Could not reach NotebookLM"):
+                mock_client._call_rpc("rLM1Ne", [])
+
+    def test_auth_recovery_keeps_expiry_as_authentication_failure(self, mock_client):
+        """A login redirect remains an authentication failure."""
+        with (
+            patch.object(mock_client, "_get_client") as mock_get_client,
+            patch.object(
+                mock_client,
+                "_refresh_auth_tokens",
+                side_effect=ValueError("Authentication expired. accounts.google.com"),
+            ),
+            patch.object(mock_client, "_try_reload_or_headless_auth", return_value=False),
+        ):
+            http_client = MagicMock(spec=httpx.Client)
+            mock_get_client.return_value = http_client
+
+            req = httpx.Request("POST", "https://notebooklm.google.com/batchexecute")
+            resp = httpx.Response(401, request=req)
+            http_client.post.side_effect = httpx.HTTPStatusError(
+                "Unauthorized", request=req, response=resp
+            )
+
+            with pytest.raises(AuthenticationError, match="Authentication expired"):
+                mock_client._call_rpc("rLM1Ne", [])
 
     def test_auto_retry_on_rpc_error_16(self, mock_client):
         """Test that client refreshes tokens and retries on RPC Error 16."""

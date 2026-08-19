@@ -13,6 +13,7 @@ from notebooklm_tools.core.errors import (
     NotebookLMError,
     ResourceExhaustedError,
     RPCError,
+    TransientBackendError,
 )
 
 
@@ -59,6 +60,19 @@ def test_client_authentication_error():
     assert "Session expired" in str(err)
 
 
+def test_transient_backend_error_is_not_authentication_error():
+    """Transient backend failures expose a retry hint without prompting login."""
+    err = TransientBackendError(
+        "Could not reach NotebookLM.",
+        hint="Check your connection and retry.",
+    )
+
+    assert isinstance(err, NotebookLMError)
+    assert not isinstance(err, ClientAuthenticationError)
+    assert err.message == "Could not reach NotebookLM."
+    assert err.hint == "Check your connection and retry."
+
+
 def test_exception_hierarchy():
     """Test exception inheritance chain."""
     assert issubclass(ArtifactError, NotebookLMError)
@@ -68,6 +82,7 @@ def test_exception_hierarchy():
     assert issubclass(ArtifactNotFoundError, ArtifactError)
     # ClientAuthenticationError is separate from NotebookLMError
     assert issubclass(ClientAuthenticationError, Exception)
+    assert issubclass(TransientBackendError, NotebookLMError)
     # ResourceExhaustedError is a subclass of RPCError
     assert issubclass(ResourceExhaustedError, RPCError)
     assert issubclass(ResourceExhaustedError, NotebookLMError)

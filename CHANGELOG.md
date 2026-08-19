@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.13] - 2026-08-19
+
+This maintenance release restores the README star-history chart and makes authentication failures distinguishable from transient backend failures.
+
+### Fixed
+
+- **Transient backend/auth distinction ([PR #300](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/300), [PR #301](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/301))** — Transport errors, timeouts, DNS failures, and HTTP 5xx responses during authentication refresh now surface as transient backend or network errors, while explicit session expiry and Google authentication redirects remain authentication failures. Thanks to **@practical-tools-lab** for the original reproduction and transport-classification work in PR #300.
+- **README star-history chart ([PR #299](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/299))** — The chart now uses a public mirror that does not require GitHub stargazer API permissions. Thanks to **@CrustyMozarella** for the mirror fix.
+
+### Scope note
+
+- Issue #298 remains open and is not claimed as fixed by this release.
+
+### Verification
+
+- Full non-E2E test suite: 1,424 passed, 38 skipped, 1 deselected.
+- Ruff lint and formatting checks passed.
+- Package version alignment, Python compilation, and CLI smoke checks passed.
+
 ## [0.9.12] - 2026-08-17
 
 ### Added

@@ -6,7 +6,7 @@ from typing import Any
 
 import notebooklm_tools.utils.env_sanitize as _env_sanitize  # noqa: F401
 
-__version__ = "0.9.12"
+__version__ = "0.9.13"
 
 __all__ = ["NotebookLMClient", "__version__"]
 

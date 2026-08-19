@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.9.12"
+version: "0.9.13"
 description: "Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"Gemini Notebook\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any Gemini Notebook-related automation task."
 ---
 

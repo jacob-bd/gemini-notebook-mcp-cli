@@ -762,7 +762,7 @@ wheels = [
 
 [[package]]
 name = "notebooklm-mcp-cli"
-version = "0.9.12"
+version = "0.9.13"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },

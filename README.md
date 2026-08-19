@@ -626,7 +626,7 @@ Special thanks to:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=jacob-bd/gemini-notebook-mcp-cli&type=Date)](https://star-history.com/#jacob-bd/gemini-notebook-mcp-cli&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=jacob-bd/gemini-notebook-mcp-cli&type=Date)](https://star-history.dera.page/#jacob-bd/gemini-notebook-mcp-cli&Date)
 
 ## License
 

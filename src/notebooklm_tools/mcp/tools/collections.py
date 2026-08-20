@@ -38,9 +38,7 @@ def collection_create(name: str, notebook_ids: list[str] = None) -> ResultDict:
 
 @logged_tool()
 def collection_edit(
-    collection_id: str,
-    name: str = None,
-    notebook_ids: list[str] = None
+    collection_id: str, name: str = None, notebook_ids: list[str] = None
 ) -> ResultDict:
     """Edit an existing collection's name and/or list of notebooks.
 

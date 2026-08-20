@@ -65,6 +65,11 @@ TOOL_GROUPS: dict[str, set[str]] = {
     "organization": {
         "label",
         "tag",
+        "collection_list",
+        "collection_create",
+        "collection_edit",
+        "collection_set_emoji",
+        "collection_delete",
     },
     "automation": {
         "batch",

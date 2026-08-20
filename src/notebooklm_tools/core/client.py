@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from . import constants
+from .collections import CollectionsMixin
 from .conversation import ConversationMixin
 from .download import DownloadMixin
 
@@ -21,7 +22,6 @@ from .download import DownloadMixin
 from .errors import (
     ClientAuthenticationError,
 )
-from .collections import CollectionsMixin
 from .exports import ExportMixin
 from .labels import LabelsMixin
 from .notebooks import NotebookMixin

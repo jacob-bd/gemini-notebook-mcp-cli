@@ -83,6 +83,7 @@ def _register_tools() -> None:
         batch,
         chat,
         chats,
+        collections,
         cross_notebook,
         downloads,
         exports,

@@ -21,6 +21,7 @@ from .download import DownloadMixin
 from .errors import (
     ClientAuthenticationError,
 )
+from .collections import CollectionsMixin
 from .exports import ExportMixin
 from .labels import LabelsMixin
 from .notebooks import NotebookMixin
@@ -51,6 +52,7 @@ class NotebookLMClient(
     NotebookMixin,
     NotesMixin,
     LabelsMixin,
+    CollectionsMixin,
 ):
     """Client for NotebookLM MCP internal API.
 

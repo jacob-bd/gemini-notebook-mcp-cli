@@ -10,6 +10,13 @@ from .chat import (
     notebook_query_status,
 )
 from .chats import chat_export, chat_get, chat_list
+from .collections import (
+    collection_create,
+    collection_delete,
+    collection_edit,
+    collection_list,
+    collection_set_emoji,
+)
 from .cross_notebook import cross_notebook_query
 from .downloads import download_all_artifacts, download_artifact
 from .exports import (
@@ -69,6 +76,12 @@ __all__ = [
     "notebook_create",
     "notebook_rename",
     "notebook_delete",
+    # Collections (5)
+    "collection_list",
+    "collection_create",
+    "collection_edit",
+    "collection_set_emoji",
+    "collection_delete",
     # Sources (7)
     "source_add",
     "source_list_drive",

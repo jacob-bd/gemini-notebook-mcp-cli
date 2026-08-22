@@ -850,6 +850,7 @@ def check_auth(
     # before declaring the profile expired.
     try:
         from notebooklm_tools.core.client import NotebookLMClient
+        from notebooklm_tools.core.errors import ClientAuthenticationError
         from notebooklm_tools.core.exceptions import AuthenticationError
 
         client = NotebookLMClient(
@@ -867,7 +868,7 @@ def check_auth(
             refreshed_bl = client._bl
         finally:
             client.close()
-    except AuthenticationError:
+    except (AuthenticationError, ClientAuthenticationError):
         return AuthCheckResult(
             valid=False,
             reason="expired",

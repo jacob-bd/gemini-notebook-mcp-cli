@@ -123,6 +123,36 @@ class TestCheckAuthAPI:
             assert result.reason == "expired"
             assert result.live is True
 
+    def test_check_auth_classifies_client_rpc_auth_error_as_expired(
+        self, tmp_path, monkeypatch
+    ):
+        """The low-level RPC client raises its own authentication class.
+
+        It is not an NLMError and must not be mislabeled as a network outage.
+        """
+        from notebooklm_tools.core.errors import ClientAuthenticationError
+
+        monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)
+        AuthManager("default").save_profile(
+            cookies={"SID": "dead", "HSID": "dead", "SSID": "dead", "APISID": "dead", "SAPISID": "dead"},
+            csrf_token="stale123",
+            session_id="sess123",
+        )
+        with (
+            patch("httpx.Client") as MockClient,
+            patch(
+                "notebooklm_tools.core.client.NotebookLMClient.list_notebooks",
+                side_effect=ClientAuthenticationError("RPC code 16"),
+            ),
+        ):
+            client = MockClient.return_value.__enter__.return_value
+            req = httpx.Request("GET", "https://accounts.google.com/ServiceLogin")
+            client.get.return_value = httpx.Response(200, request=req, text="login")
+            result = check_auth(live=True)
+
+        assert result.valid is False
+        assert result.reason == "expired"
+
     def test_check_auth_live_true_redirect_but_rpc_alive_is_valid(self, tmp_path, monkeypatch):
         """Homepage redirects can be false negatives; a live RPC wins."""
         monkeypatch.setattr("notebooklm_tools.utils.config.get_storage_dir", lambda: tmp_path)

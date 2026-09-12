@@ -202,6 +202,7 @@ also requires the target tool to be detected.
 | `note_list` | List all notes in a notebook |
 | `note_update` | Update a note's content or title |
 | `note_delete` | Delete a note (REQUIRES confirmation) |
+| `usage_get` | Show remaining plan usage per window (rolling + weekly) and reset times |
 
 **IMPORTANT - Operations Requiring Confirmation:**
 - `notebook_delete` requires `confirm=True` - deletion is IRREVERSIBLE
@@ -231,8 +232,13 @@ None - all Gemini Notebook features that can be accessed programmatically are im
 - Verify you're logged into the correct account
 
 ### Rate limit errors
-- Free tier: ~50 queries/day
-- Wait until the next day or upgrade to Plus
+- Since 2026-09-02, chat and Studio usage is metered as compute against two
+  windows at once: a short rolling window (~5h) and a weekly cap. Allowance
+  scales with plan tier.
+- Run `nlm usage` (MCP: `usage_get`) to see what is left in each window and
+  when it resets, instead of guessing.
+- Brief throttling is retried automatically with backoff; an exhausted window
+  needs to wait for the reset time that `nlm usage` reports.
 
 ## Documentation
 

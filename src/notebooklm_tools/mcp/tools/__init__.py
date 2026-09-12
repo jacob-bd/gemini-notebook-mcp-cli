@@ -61,6 +61,7 @@ from .studio import (
     studio_revise,
     studio_status,
 )
+from .usage import usage_get
 
 __all__ = [
     # Downloads (1 consolidated + 1 bulk)
@@ -120,6 +121,7 @@ __all__ = [
     "label",
     # Server (1)
     "server_info",
+    "usage_get",
     # Batch (1 consolidated — action: query|add_source|create|delete|studio)
     "batch",
     # Cross-notebook (1)

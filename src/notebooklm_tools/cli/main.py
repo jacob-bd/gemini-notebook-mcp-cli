@@ -40,6 +40,7 @@ from notebooklm_tools.cli.commands.studio import (
     video_app,
 )
 from notebooklm_tools.cli.commands.tag import app as tag_app
+from notebooklm_tools.cli.commands.usage import app as usage_app
 from notebooklm_tools.cli.commands.verbs import (
     add_app,
     configure_app,
@@ -879,6 +880,7 @@ app.add_typer(batch_app, name="batch", help="Batch operations across notebooks")
 app.add_typer(cross_app, name="cross", help="Cross-notebook queries")
 app.add_typer(pipeline_app, name="pipeline", help="Run multi-step pipelines")
 app.add_typer(tag_app, name="tag", help="Manage notebook tags")
+app.add_typer(usage_app, name="usage", help="Show remaining plan usage and reset times")
 
 # Generation commands as top-level
 app.add_typer(audio_app, name="audio", help="Create audio overviews")

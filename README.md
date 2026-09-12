@@ -98,6 +98,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 | Configure AI tools                            | `nlm setup add/remove/list`     | —                                    |
 | Install AI Skills                             | `nlm skill install/update`      | —                                    |
 | Diagnose issues                               | `nlm doctor`                    | —                                    |
+| Check remaining plan usage                    | `nlm usage`                     | `usage_get`                          |
 
 📚 **More Documentation:**
 
@@ -659,7 +660,7 @@ uv tool list | grep notebooklm
 
 ## Limitations
 
-- **Rate limits**: Free tier has ~50 queries/day
+- **Rate limits**: Chat and Studio usage is metered as compute against a rolling (~5h) window and a weekly cap, scaled by plan tier. Run `nlm usage` to see what is left and when it resets
 - **No official support**: API may change without notice
 - **Cookie expiration**: Need to re-extract cookies every few weeks
 

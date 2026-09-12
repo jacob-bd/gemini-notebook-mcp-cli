@@ -97,6 +97,7 @@ def _register_tools() -> None:
         sources,
         studio,
         studio_advanced,
+        usage,
     )
     from .tools._utils import register_all_tools
 

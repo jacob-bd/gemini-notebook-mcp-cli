@@ -1905,6 +1905,59 @@ Also fires on every page load. Returns app settings including what appear to be 
 | Slide Decks | Limited | More | Higher | Highest |
 
 **Notes:**
-- Daily quotas reset after 24 hours; monthly quotas reset after 30 days
 - Auto-generated artifacts (on first source add) do NOT count toward limits
-- There is no API endpoint to query current usage counts — limits are enforced server-side
+- **Superseded for chat and Studio as of 2026-09-02** — see the compute-based
+  windows below. The per-notebook and per-source structural caps still apply.
+
+### `EylDcb` — Get Remaining Usage (compute windows)
+
+On 2026-09-02 Gemini Notebook replaced fixed daily caps for chat and Studio with
+a compute-based allowance. Consumption depends on prompt complexity and the
+features used, not on a count of requests, so the client cannot derive what is
+left by counting its own calls. This RPC reports it directly. Fires when the
+usage dialog is opened from the Settings menu.
+
+**Captured request params (2026-09-12):**
+```python
+# The standard RPC header is the only parameter:
+[[2, null, [1], [1, null, null, null, null, null, null, null, null, null, [1, 3]]]]
+```
+
+**Captured response (decoded, 2026-09-12):**
+```python
+[1,
+ [[null, null, null, null, 2, [1789697670, 16986000], 8.703406947222222, 91.29659305277778],
+  [null, null, null, null, 1, [1789200870, 16877000], null, 100]],
+ null,
+ [[1, true, 6, 3, 1, 11.177083333333334], ...]]   # 24 entries, appears to be recent activity
+```
+
+Each entry in `response[1]` describes one window:
+
+| Index | Meaning |
+|-------|---------|
+| 4 | Window type: `1` = short rolling window (~5h), `2` = weekly window |
+| 5 | Reset time as `[epoch_seconds, nanoseconds]` |
+| 6 | Percent of the allowance **used**; `null` when nothing has been consumed |
+| 7 | Percent of the allowance **remaining** |
+
+**Index 6 is "used" and index 7 is "remaining"**, confirmed two ways: the web
+dialog read "0% used" while the payload carried `100`, and a partly consumed
+account returned `8.703406947222222` beside `91.29659305277778`, which sum to
+exactly `100`.
+
+**⚠️ The two entries are NOT returned in a stable order.** Observed as `[2, 1]`
+in one call and `[1, 2]` in the next, for the same account. Always select a
+window by its type code at index 4; reading by position silently swaps the
+5-hour budget with the weekly one.
+
+**⚠️ An expired session is not an exhausted quota.** When the saved session has
+aged out, this RPC returns RPC error code 16 (`UNAUTHENTICATED`) and `ozz5Z`
+returns a well-formed but empty entitlement. Neither may be read as "out of
+quota" or as a free-tier account. Run `nlm auth refresh` and retry.
+
+**The `authuser` query parameter has no effect here.** Omitting it and passing
+`0`, `1` or `2` all returned byte-identical payloads for the same account.
+
+**Implementation:** `core/usage.py` (`UsageMixin`), `services/usage.py`,
+`nlm usage`, MCP tool `usage_get`.

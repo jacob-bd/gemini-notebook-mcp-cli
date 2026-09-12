@@ -30,6 +30,7 @@ from .research import ResearchMixin
 from .sharing import SharingMixin
 from .sources import SourceMixin
 from .studio import StudioMixin
+from .usage import UsageMixin
 
 # Backward compatibility alias - code importing AuthenticationError from client.py
 # will get the ClientAuthenticationError from errors.py
@@ -53,6 +54,7 @@ class NotebookLMClient(
     NotesMixin,
     LabelsMixin,
     CollectionsMixin,
+    UsageMixin,
 ):
     """Client for NotebookLM MCP internal API.
 

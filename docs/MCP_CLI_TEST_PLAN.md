@@ -1039,6 +1039,31 @@ Get Gemini Notebook MCP server version and check for updates.
 
 ---
 
+## Test Group 13: Plan Usage
+
+### Test 13.1 - Get Remaining Usage
+**Tool:** `usage_get`
+**CLI (Noun):** `nlm usage` (add `--json` for raw output)
+
+**Prompt:**
+```
+How much of my Gemini Notebook usage allowance is left?
+```
+
+**Expected:**
+- `windows`: two entries, `rolling` first then `weekly`
+- each with `percent_used`, `percent_remaining` and `resets_at` (ISO 8601 UTC)
+- `tier`: subscription tier string, e.g. `NOTEBOOKLM_TIER_PRO_CONSUMER_USER`
+
+**Also verify:**
+- Run it twice. The reported order stays `rolling`, `weekly` even though the API
+  returns the two entries in an unstable order.
+- `percent_used` and `percent_remaining` sum to 100 for a partly consumed window.
+- With an expired session it reports an authentication error and hints at
+  `nlm auth refresh`. It must NOT report the allowance as exhausted.
+
+---
+
 ## Summary: 31 Consolidated Tools
 
 | Category | Tools | Count |

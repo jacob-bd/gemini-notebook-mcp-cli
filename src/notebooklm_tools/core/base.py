@@ -305,6 +305,14 @@ class BaseClient:
     # Export RPCs
     RPC_EXPORT_ARTIFACT = "Krh3pd"  # Export to Google Docs/Sheets
 
+    # Usage RPCs
+    RPC_GET_USAGE = "EylDcb"  # Remaining allowance and reset time per usage window
+    # Same endpoint as RPC_ADD_SOURCE_V2: Google dual-maps ozz5Z, returning the
+    # subscription tier for homepage params and adding a URL source for notebook
+    # params. Kept as its own constant so the two uses stay independently
+    # documented and independently patchable via NOTEBOOKLM_RPC_OVERRIDES.
+    RPC_GET_ENTITLEMENT = "ozz5Z"  # Subscription tier the account is entitled to
+
     # =========================================================================
     # API Constants (re-exported from constants module)
     # =========================================================================

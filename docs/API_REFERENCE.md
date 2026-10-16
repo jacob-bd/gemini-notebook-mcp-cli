@@ -2041,6 +2041,35 @@ GyzE7e([[2], notebook_id, [label_id_to_remove]])
 
 ---
 
+## Collection RPCs
+
+Collections group notebooks on the home page. They share RPC IDs with labels but use a different header as the first param:
+
+```python
+header = [2, null, [1], [1, null, null, null, null, null, null, null, null, null, [1, 3]]]
+```
+
+Create (`agX4Bc`, returns every collection) and delete (`GyzE7e`) are unchanged; see `core/collections.py`.
+
+### `le8sX` — Collection Mutation (Rename / Emoji / Add / Remove Notebooks)
+
+```python
+# Request params
+[header, null, collection_id, edit_payload, 3]
+# Response: [] (empty = success)
+```
+
+The web UI sends **one operation per call** (captured from notebook.google.com):
+
+| Operation | `edit_payload` |
+|---|---|
+| Rename | `[[[new_name]]]` |
+| Set emoji | `[[[null, "📁"]]]` |
+| Add notebooks | `[[null, null, null, [[notebook_id, ...]]], []]` |
+| Remove notebooks | `[[null, null, null, null, [[notebook_id, ...]]], []]` |
+
+Add/remove carry only the **delta**, not the full membership list. Sending the full list, or name and notebooks in one payload, returns `INVALID_ARGUMENT`. `edit_collection(notebook_ids=...)` therefore reads the current membership and issues separate add/remove calls.
+
 ## User Tier and Usage Limits
 
 ### `ozz5Z` — Get User Subscription Tier

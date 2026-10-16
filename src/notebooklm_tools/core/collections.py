@@ -107,24 +107,40 @@ class CollectionsMixin(BaseClient):
             collection_id: UUID of the collection to edit
             name: New name (optional)
             notebook_ids: New complete list of notebook IDs (optional)
+
+        The le8sX RPC takes one operation per call (captured from the web UI):
+            rename:  [[[name]]]
+            add:     [[None, None, None, [[id, ...]]], []]
+            remove:  [[None, None, None, None, [[id, ...]]], []]
+        Sending the whole list, or name and notebooks together, returns INVALID_ARGUMENT.
         """
         header = self._get_collections_header()
 
-        # Format: [[None, None, None, [[notebook_ids]]], [[new_name]]]
-        notebooks_payload = None
-        if notebook_ids is not None:
-            notebooks_payload = [None, None, None, [notebook_ids]]
+        def _edit(payload) -> bool:
+            result = self._call_rpc("le8sX", [header, None, collection_id, payload, 3])
+            return result == [] or result is not None
 
-        name_payload = None
+        ok = True
         if name is not None:
-            name_payload = [[name]]
+            ok = _edit([[[name]]]) and ok
 
-        edit_payload = [notebooks_payload, name_payload]
+        if notebook_ids is not None:
+            current = None
+            for col in self.list_collections():
+                if col["id"] == collection_id:
+                    current = col["notebook_ids"]
+                    break
+            if current is None:
+                raise ValueError(f"Collection not found: {collection_id}")
+            wanted = list(dict.fromkeys(notebook_ids))
+            to_add = [i for i in wanted if i not in current]
+            to_remove = [i for i in current if i not in wanted]
+            if to_add:
+                ok = _edit([[None, None, None, [to_add]], []]) and ok
+            if to_remove:
+                ok = _edit([[None, None, None, None, [to_remove]], []]) and ok
 
-        params = [header, None, collection_id, edit_payload, 3]
-
-        result = self._call_rpc("le8sX", params)
-        return result == [] or result is not None
+        return ok
 
     def set_collection_emoji(self, collection_id: str, emoji: str) -> bool:
         """Sets or clears the emoji marker on a collection (pass "" to clear)."""

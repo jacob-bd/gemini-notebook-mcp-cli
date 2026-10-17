@@ -113,6 +113,10 @@ class CollectionsMixin(BaseClient):
             add:     [[None, None, None, [[id, ...]]], []]
             remove:  [[None, None, None, None, [[id, ...]]], []]
         Sending the whole list, or name and notebooks together, returns INVALID_ARGUMENT.
+
+        Membership is read before anything is written, so an unknown collection
+        fails without applying the rename. The operations are not atomic: a
+        later step can fail after an earlier one succeeded.
         """
         header = self._get_collections_header()
 
@@ -120,10 +124,8 @@ class CollectionsMixin(BaseClient):
             result = self._call_rpc("le8sX", [header, None, collection_id, payload, 3])
             return result == [] or result is not None
 
-        ok = True
-        if name is not None:
-            ok = _edit([[[name]]]) and ok
-
+        to_add = []
+        to_remove = []
         if notebook_ids is not None:
             current = None
             for col in self.list_collections():
@@ -135,10 +137,14 @@ class CollectionsMixin(BaseClient):
             wanted = list(dict.fromkeys(notebook_ids))
             to_add = [i for i in wanted if i not in current]
             to_remove = [i for i in current if i not in wanted]
-            if to_add:
-                ok = _edit([[None, None, None, [to_add]], []]) and ok
-            if to_remove:
-                ok = _edit([[None, None, None, None, [to_remove]], []]) and ok
+
+        ok = True
+        if name is not None:
+            ok = _edit([[[name]]]) and ok
+        if to_add:
+            ok = _edit([[None, None, None, [to_add]], []]) and ok
+        if to_remove:
+            ok = _edit([[None, None, None, None, [to_remove]], []]) and ok
 
         return ok
 

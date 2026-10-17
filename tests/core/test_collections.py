@@ -73,3 +73,15 @@ def test_params_shape(rpc):
 def test_unknown_collection_raises(rpc):
     with pytest.raises(ValueError):
         _mixin().edit_collection("missing", notebook_ids=["nb-a"])
+
+
+def test_unknown_collection_sends_no_rename(rpc):
+    with pytest.raises(ValueError):
+        _mixin().edit_collection("missing", name="New name", notebook_ids=["nb-a"])
+    assert _edit_payloads(rpc) == []
+
+
+def test_partial_failure_returns_false(rpc):
+    rpc.side_effect = [[], None, []]
+    assert _mixin().edit_collection(COL_ID, name="Group 2", notebook_ids=["nb-b", "nb-c"]) is False
+    assert len(_edit_payloads(rpc)) == 3

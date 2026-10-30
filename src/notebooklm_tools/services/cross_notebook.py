@@ -17,6 +17,9 @@ class NotebookQueryResult(TypedDict):
     notebook_title: str
     answer: str
     sources_used: list
+    citations: dict
+    references: list
+    conversation_id: str | None
     error: str | None
 
 
@@ -50,6 +53,9 @@ def _query_single_notebook(
             "notebook_title": notebook_title,
             "answer": result["answer"],
             "sources_used": result["sources_used"],
+            "citations": result.get("citations", {}),
+            "references": result.get("references", []),
+            "conversation_id": result.get("conversation_id"),
             "error": None,
         }
     except Exception as e:
@@ -58,6 +64,9 @@ def _query_single_notebook(
             "notebook_title": notebook_title,
             "answer": "",
             "sources_used": [],
+            "citations": {},
+            "references": [],
+            "conversation_id": None,
             "error": str(e),
         }
 

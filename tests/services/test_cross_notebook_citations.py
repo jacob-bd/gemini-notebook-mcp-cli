@@ -17,7 +17,10 @@ def test_single_notebook_preserves_citations_references_and_conversation_id():
         "references": [evidence],
         "conversation_id": "conversation-1",
     }
-    with patch("notebooklm_tools.services.cross_notebook.chat_service.query", return_value=response):
+    with patch(
+        "notebooklm_tools.services.cross_notebook.chat_service.query",
+        return_value=response,
+    ):
         result = _query_single_notebook(MagicMock(), "notebook-1", "Notebook 1", "Question")
 
     assert result["citations"] == {1: "paper-1"}
@@ -28,7 +31,10 @@ def test_single_notebook_preserves_citations_references_and_conversation_id():
 
 def test_single_notebook_defaults_for_missing_optional_fields():
     response = {"answer": "Answer", "sources_used": []}
-    with patch("notebooklm_tools.services.cross_notebook.chat_service.query", return_value=response):
+    with patch(
+        "notebooklm_tools.services.cross_notebook.chat_service.query",
+        return_value=response,
+    ):
         result = _query_single_notebook(MagicMock(), "notebook-1", "Notebook 1", "Question")
 
     assert result["citations"] == {}
@@ -37,7 +43,10 @@ def test_single_notebook_defaults_for_missing_optional_fields():
 
 
 def test_failed_query_returns_empty_evidence_without_leaking_other_sources():
-    with patch("notebooklm_tools.services.cross_notebook.chat_service.query", side_effect=RuntimeError("rate limited")):
+    with patch(
+        "notebooklm_tools.services.cross_notebook.chat_service.query",
+        side_effect=RuntimeError("rate limited"),
+    ):
         result = _query_single_notebook(MagicMock(), "notebook-1", "Notebook 1", "Question")
 
     assert result["answer"] == ""
@@ -55,15 +64,24 @@ def test_cross_notebook_keeps_each_notebooks_citations_separate():
             "answer": f"Finding from {notebook_id} [1]",
             "sources_used": [source_id],
             "citations": {1: source_id},
-            "references": [{"source_id": source_id, "citation_number": 1, "cited_text": notebook_id}],
+            "references": [
+                {"source_id": source_id, "citation_number": 1, "cited_text": notebook_id}
+            ],
             "conversation_id": f"conversation-{notebook_id}",
         }
 
     with (
-        patch("notebooklm_tools.services.cross_notebook._resolve_notebook_ids", return_value=[
-            ("nb-a", "Notebook A"), ("nb-b", "Notebook B")
-        ]),
-        patch("notebooklm_tools.services.cross_notebook.chat_service.query", side_effect=answer_for_notebook),
+        patch(
+            "notebooklm_tools.services.cross_notebook._resolve_notebook_ids",
+            return_value=[
+                ("nb-a", "Notebook A"),
+                ("nb-b", "Notebook B"),
+            ],
+        ),
+        patch(
+            "notebooklm_tools.services.cross_notebook.chat_service.query",
+            side_effect=answer_for_notebook,
+        ),
     ):
         result = cross_notebook_query(MagicMock(), "Compare results", all_notebooks=True)
 
@@ -85,15 +103,24 @@ def test_cross_notebook_partial_failure_keeps_successful_evidence():
             "answer": "Supported [1]",
             "sources_used": ["paper-a"],
             "citations": {1: "paper-a"},
-            "references": [{"source_id": "paper-a", "citation_number": 1, "cited_text": "Evidence"}],
+            "references": [
+                {"source_id": "paper-a", "citation_number": 1, "cited_text": "Evidence"}
+            ],
             "conversation_id": "conv-a",
         }
 
     with (
-        patch("notebooklm_tools.services.cross_notebook._resolve_notebook_ids", return_value=[
-            ("nb-a", "Notebook A"), ("nb-b", "Notebook B")
-        ]),
-        patch("notebooklm_tools.services.cross_notebook.chat_service.query", side_effect=answer_or_fail),
+        patch(
+            "notebooklm_tools.services.cross_notebook._resolve_notebook_ids",
+            return_value=[
+                ("nb-a", "Notebook A"),
+                ("nb-b", "Notebook B"),
+            ],
+        ),
+        patch(
+            "notebooklm_tools.services.cross_notebook.chat_service.query",
+            side_effect=answer_or_fail,
+        ),
     ):
         result = cross_notebook_query(MagicMock(), "Question", all_notebooks=True)
 

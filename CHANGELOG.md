@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.9] - 2026-11-02
+
 ### Fixed
 
 - Cross-notebook queries now preserve each notebook’s citations, cited passages when available, and conversation ID, making answers easier to trace back to their sources ([PR #384](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/384)).

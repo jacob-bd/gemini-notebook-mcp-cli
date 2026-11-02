@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Cross-notebook queries now preserve each notebook’s citations, cited passages when available, and conversation ID, making answers easier to trace back to their sources ([PR #384](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/384)).
+
 ### Changed
 
 - Updated the pinned `astral-sh/setup-uv` GitHub Action from 10.3.0 to 10.3.2 across CI and release workflows, including upstream cache warning fixes and updated uv checksums ([PR #383](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/383)).
 - Updated the pinned `pypa/gh-action-pypi-publish` GitHub Action from 1.14.2 to 1.14.3 for upstream certificate security fixes and runtime dependency hash checking ([PR #382](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/382)).
+
+### Credits
+
+Thanks to **@sushmitxo** for the cross-notebook citation fix in [#384](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/384).
 
 ## [0.15.8] - 2026-10-25
 

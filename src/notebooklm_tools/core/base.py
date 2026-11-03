@@ -1011,7 +1011,9 @@ class BaseClient:
 
         # Passage retrieval can contain sensitive source text and search queries.
         # Keep debug payload logging disabled for this RPC.
-        safe_debug = logger.isEnabledFor(logging.DEBUG) and rpc_id != self.RPC_SEARCH_RELEVANT_CHUNKS
+        safe_debug = (
+            logger.isEnabledFor(logging.DEBUG) and rpc_id != self.RPC_SEARCH_RELEVANT_CHUNKS
+        )
         if safe_debug:
             method_name = RPC_NAMES.get(rpc_id, "unknown")
             logger.debug("=" * 70)

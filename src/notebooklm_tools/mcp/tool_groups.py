@@ -40,6 +40,7 @@ TOOL_GROUPS: dict[str, set[str]] = {
         "notebook_delete",
     },
     "sources_read": {
+        "source_search",
         "source_list_drive",
         "source_describe",
         "source_get_content",

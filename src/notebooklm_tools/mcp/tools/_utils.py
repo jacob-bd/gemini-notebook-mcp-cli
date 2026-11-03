@@ -414,6 +414,21 @@ def _resolve_notebook_alias(
     return bound.args, bound.kwargs
 
 
+def unlogged_tool() -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Register a privacy-sensitive MCP tool without serializing its arguments/results.
+
+    This retains the normal central registry and tool-group gating behavior.
+    Use only for operations whose queries or returned contents must not appear
+    in debug MCP logs. Errors must still be sanitized by the tool itself.
+    """
+
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
+        _tool_registry.append((func.__name__, cast(Callable[..., Any], func)))
+        return func
+
+    return decorator
+
+
 def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
     """Decorator that adds MCP request/response logging to a tool.
 

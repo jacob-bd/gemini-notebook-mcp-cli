@@ -254,6 +254,7 @@ class BaseClient:
     RPC_ADD_SOURCE_V2 = "ozz5Z"  # URL source addition (new rollout, issue #121)
     RPC_ADD_SOURCE_FILE = "o4cbdc"  # Register file for resumable upload
     RPC_GET_SOURCE = "hizoJc"  # Get source details
+    RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"  # Read-only indexed passage retrieval
     RPC_CHECK_FRESHNESS = "yR9Yof"  # Check if Drive source is stale
     RPC_SYNC_DRIVE = "FLmJqe"  # Sync Drive source with latest content
     RPC_DELETE_SOURCE = "tGMBJ"  # Delete a source from notebook
@@ -1008,8 +1009,10 @@ class BaseClient:
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
 
-        # Enhanced debug logging
-        if logger.isEnabledFor(logging.DEBUG):
+        # Passage retrieval can contain sensitive source text and search queries.
+        # Keep debug payload logging disabled for this RPC.
+        safe_debug = logger.isEnabledFor(logging.DEBUG) and rpc_id != self.RPC_SEARCH_RELEVANT_CHUNKS
+        if safe_debug:
             method_name = RPC_NAMES.get(rpc_id, "unknown")
             logger.debug("=" * 70)
             logger.debug(f"RPC Call: {rpc_id} ({method_name})")
@@ -1038,8 +1041,8 @@ class BaseClient:
             else:
                 response = client.post(url, content=body)
 
-            # Log response before raise_for_status (so we can see error responses)
-            if logger.isEnabledFor(logging.DEBUG):
+            # Never include ASU5Oe passage content in debug diagnostics.
+            if safe_debug:
                 logger.debug("-" * 70)
                 logger.debug(f"Response Status: {response.status_code}")
                 logger.debug(
@@ -1052,12 +1055,12 @@ class BaseClient:
 
             # Check for RPC-level errors (soft auth failure)
             parsed = self._parse_response(response.text)
-            if logger.isEnabledFor(logging.DEBUG):
+            if safe_debug:
                 logger.debug("RPC IDs in response: %s", self._extract_present_rpc_ids(parsed))
             result = self._extract_rpc_result(parsed, rpc_id)
 
-            # Enhanced debug logging for extracted result
-            if logger.isEnabledFor(logging.DEBUG):
+            # Never log retrieved source passages, even in debug mode.
+            if safe_debug:
                 logger.debug("-" * 70)
                 logger.debug("Response Data:")
                 logger.debug(_format_debug_json(result))

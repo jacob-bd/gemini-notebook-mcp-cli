@@ -36,7 +36,8 @@ def test_server_error_is_replayed_by_default(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "rpc_id", ["CCqFvf", "WWINqb", "agX4Bc", "le8sX", "GyzE7e", "Rytqqe", "future-unknown-rpc"]
+    "rpc_id",
+    ["CCqFvf", "WWINqb", "agX4Bc", "le8sX", "GyzE7e", "Rytqqe", "future-unknown-rpc", "cFji9"],
 )
 @pytest.mark.parametrize("status", [429, 502])
 def test_mutation_or_unknown_rpc_is_not_replayed_by_default(monkeypatch, rpc_id, status):
@@ -48,11 +49,12 @@ def test_mutation_or_unknown_rpc_is_not_replayed_by_default(monkeypatch, rpc_id,
 
 
 @pytest.mark.parametrize("status", [429, 502])
-def test_read_only_rpc_retains_server_retry(monkeypatch, status):
+@pytest.mark.parametrize("rpc_id", ["wXbhsf", "rG2vCb", "EylDcb"])
+def test_read_only_rpc_retains_server_retry(monkeypatch, status, rpc_id):
     monkeypatch.setattr("time.sleep", lambda *_: None)
     client = _client_returning(status)
     with pytest.raises(httpx.HTTPStatusError):
-        client._call_rpc("wXbhsf", [], "/")
+        client._call_rpc(rpc_id, [], "/")
     assert client._get_client.return_value.post.call_count > 1
 
 

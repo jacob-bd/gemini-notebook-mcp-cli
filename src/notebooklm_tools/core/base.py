@@ -57,8 +57,9 @@ _REPLAY_SAFE_READ_RPCS = frozenset(
         "e3bVqc",
         "gArtLc",
         "v9rmvd",
-        "cFji9",
         "JFMDGd",
+        "rG2vCb",
+        "EylDcb",
     }
 )
 

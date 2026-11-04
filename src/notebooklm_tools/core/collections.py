@@ -1,7 +1,7 @@
 """CollectionsMixin - Native NotebookLM collections management operations."""
 
 import logging
-import time
+from uuid import uuid4
 
 from .base import BaseClient
 
@@ -26,30 +26,33 @@ class CollectionsMixin(BaseClient):
                 - emoji: str
         """
         header = self._get_collections_header()
-        temp_name = f"_temp_list_query_{int(time.time())}"
-
-        # 1. Create a temporary collection to force Google to return the list
+        # Read RPC is unavailable: creating and deleting a temporary collection
+        # is a provider-side mutation. Prevent concurrent calls sharing a name.
+        temp_name = f"_temp_list_query_{uuid4().hex}"
         params_create = [header, None, None, None, None, [[temp_name], None, []], 3]
 
-        result = self._call_rpc("agX4Bc", params_create)
+        try:
+            # The provider may have created the collection even if it returned 5xx.
+            # Replaying the create would leave additional temporary collections.
+            result = self._call_rpc("agX4Bc", params_create, retry_server_errors=False)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Collection listing may have created {temp_name}; verify cleanup manually."
+            ) from exc
 
         collections = []
         temp_id = None
-
         if result and len(result) > 2 and isinstance(result[2], list):
             for col in result[2]:
                 if not isinstance(col, list) or len(col) < 3:
                     continue
-
                 col_name = col[0] or ""
                 col_notebooks = col[1] or []
                 col_id = col[2] or ""
                 col_emoji = col[3] if len(col) > 3 else ""
-
                 if col_name == temp_name:
                     temp_id = col_id
                     continue
-
                 collections.append(
                     {
                         "id": col_id,
@@ -59,13 +62,18 @@ class CollectionsMixin(BaseClient):
                     }
                 )
 
-        # 2. Delete the temporary collection in the background
-        if temp_id:
-            try:
-                self.delete_collection(temp_id)
-            except Exception as e:
-                logger.warning(f"Failed to cleanup temporary listing collection {temp_id}: {e}")
-
+        if not temp_id:
+            raise RuntimeError(
+                f"Collection listing could not identify {temp_name} for cleanup; "
+                "reconcile provider state before retrying."
+            )
+        try:
+            if not self.delete_collection(temp_id):
+                raise RuntimeError("Provider did not confirm temporary collection deletion")
+        except Exception as exc:
+            raise RuntimeError(
+                f"Collection listing left uncertain cleanup for {temp_name} ({temp_id})."
+            ) from exc
         return collections
 
     def create_collection(self, name: str, notebook_ids: list[str] = None) -> dict:

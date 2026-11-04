@@ -35,12 +35,7 @@ from .retry import (
     RETRYABLE_CONNECT_ERRORS,
     is_retryable_error,
 )
-from .utils import (
-    RPC_NAMES,
-    _decode_request_body,
-    _format_debug_json,
-    _parse_url_params,
-)
+from .utils import RPC_NAMES
 
 # Configure logger (API internals only logged at DEBUG level, usually disabled)
 logger = logging.getLogger("notebooklm_mcp.api")
@@ -1033,29 +1028,15 @@ class BaseClient:
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
 
-        # Enhanced debug logging
+        # Diagnostic output must never include notebook content, URL session
+        # parameters, RPC request payloads, or authentication-related data.
         if logger.isEnabledFor(logging.DEBUG):
-            method_name = RPC_NAMES.get(rpc_id, "unknown")
-            logger.debug("=" * 70)
-            logger.debug(f"RPC Call: {rpc_id} ({method_name})")
-            logger.debug("-" * 70)
-
-            # Parse and display URL params
-            url_params = _parse_url_params(url)
-            logger.debug("URL Parameters:")
-            for key, value in url_params.items():
-                logger.debug(f"  {key}: {value}")
-
-            # Decode and display request body
-            logger.debug("-" * 70)
-            logger.debug("Request Params:")
-            decoded_body = _decode_request_body(body)
-            if "params" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["params"]))
-            elif "f.req" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["f.req"]))
-            else:
-                logger.debug(_format_debug_json(decoded_body))
+            logger.debug(
+                "RPC Call: %s (%s); request_bytes=%d",
+                rpc_id,
+                RPC_NAMES.get(rpc_id, "unknown"),
+                len(body),
+            )
 
         try:
             if timeout:
@@ -1063,15 +1044,11 @@ class BaseClient:
             else:
                 response = client.post(url, content=body)
 
-            # Log response before raise_for_status (so we can see error responses)
+            # Preserve status and size for diagnosis, never authenticated body.
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("-" * 70)
-                logger.debug(f"Response Status: {response.status_code}")
                 logger.debug(
-                    "Raw response (first 2000 chars): %s",
-                    response.text[:2000] if response.text else "(empty)",
+                    "RPC response: status=%d; bytes=%d", response.status_code, len(response.content)
                 )
-                logger.debug("=" * 70)
 
             response.raise_for_status()
 
@@ -1081,12 +1058,8 @@ class BaseClient:
                 logger.debug("RPC IDs in response: %s", self._extract_present_rpc_ids(parsed))
             result = self._extract_rpc_result(parsed, rpc_id)
 
-            # Enhanced debug logging for extracted result
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug("-" * 70)
-                logger.debug("Response Data:")
-                logger.debug(_format_debug_json(result))
-                logger.debug("=" * 70)
+                logger.debug("RPC result received: type=%s", type(result).__name__)
 
             return result
 
@@ -1341,27 +1314,11 @@ class BaseClient:
 
             csrf_token = extract_csrf_from_page_source(html)
             if not csrf_token:
-                # Save HTML for debugging
-                from notebooklm_tools.utils.config import get_storage_dir
-
-                debug_dir = get_storage_dir()
-                debug_path = debug_dir / "debug_page.html"
-                # The dump is the authenticated page: session identifiers and
-                # notebook metadata. Create it 0o600 atomically rather than
-                # writing first and narrowing after, which leaves a window in
-                # which the file is world-readable.
-                fd = os.open(str(debug_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-                try:
-                    f = os.fdopen(fd, "w", encoding="utf-8")
-                except BaseException:
-                    os.close(fd)
-                    raise
-                with f:
-                    f.write(html)
+                # The authenticated page can contain session and notebook
+                # metadata. Never persist or log its raw HTML on failure.
                 raise ValueError(
-                    f"Could not extract CSRF token from page. "
-                    f"Page saved to {debug_path} for debugging. "
-                    f"The page structure may have changed."
+                    "Could not extract CSRF token from page. "
+                    "The page structure may have changed; no HTML was saved."
                 )
 
             # Extract session ID (FdrFJe) - optional but helps

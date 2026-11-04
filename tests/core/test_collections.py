@@ -91,3 +91,56 @@ def test_rename_unknown_collection_raises(rpc):
     with pytest.raises(ValueError):
         _mixin().edit_collection("missing", name="New name")
     assert _edit_payloads(rpc) == []
+
+
+def _listing_response(rpc_id, params, **kwargs):
+    assert rpc_id == "agX4Bc"
+    temporary_name = params[5][0][0]
+    return [
+        None,
+        None,
+        [
+            ["Original", ["nb-1"], "original-id", ""],
+            [temporary_name, [], "temporary-id", ""],
+        ],
+    ]
+
+
+def test_listing_uses_unique_name_and_confirms_cleanup():
+    with (
+        patch.object(CollectionsMixin, "_call_rpc", side_effect=_listing_response) as rpc,
+        patch.object(CollectionsMixin, "delete_collection", return_value=True) as delete,
+    ):
+        result = _mixin().list_collections()
+    assert result == [
+        {"id": "original-id", "name": "Original", "notebook_ids": ["nb-1"], "emoji": ""}
+    ]
+    assert rpc.call_args.kwargs["retry_server_errors"] is False
+    assert delete.call_args.args == ("temporary-id",)
+
+
+def test_listing_surfaces_failed_cleanup():
+    with (
+        patch.object(CollectionsMixin, "_call_rpc", side_effect=_listing_response),
+        patch.object(CollectionsMixin, "delete_collection", return_value=False),
+        pytest.raises(RuntimeError, match="uncertain cleanup"),
+    ):
+        _mixin().list_collections()
+
+
+def test_listing_surfaces_unconfirmed_creation():
+    with (
+        patch.object(CollectionsMixin, "_call_rpc", return_value=[None, None, []]),
+        pytest.raises(RuntimeError, match="could not identify"),
+    ):
+        _mixin().list_collections()
+
+
+def test_listing_does_not_replay_unconfirmed_create():
+    with (
+        patch.object(CollectionsMixin, "_call_rpc", side_effect=TimeoutError("unknown")) as rpc,
+        pytest.raises(RuntimeError, match="may have created"),
+    ):
+        _mixin().list_collections()
+    assert rpc.call_count == 1
+    assert rpc.call_args.kwargs["retry_server_errors"] is False

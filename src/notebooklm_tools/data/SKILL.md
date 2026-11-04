@@ -68,7 +68,7 @@ nlm usage --json        # Return usage data as machine-readable JSON
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 14. **Check plan usage before quota-limited work**: Run `nlm usage` (MCP: `usage_get`) before expensive chat or Studio work when budget availability matters. It reports measured compute usage, remaining percentage, and UTC reset times for the rolling and weekly windows. If the check returns an authentication error, refresh the session instead of treating the allowance as exhausted.
 
-**Current MCP surface:** 54 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 55 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, `tag`, `profile`, and `alias`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`. The
 read-only `usage_get` tool reports rolling and weekly plan usage windows.
@@ -720,6 +720,8 @@ notebook's chat history. Transcripts are fetched from NotebookLM's server
 MCP session. `chat_get`'s `conversation_id` is optional and defaults to the
 notebook's latest session. Use `chat_save_to_note` (CLI: `nlm chats to-note`)
 to save a chat or one turn as a Note. Aliases from `alias` work as `notebook_id`.
+Use `chat_delete(confirm=True)` (CLI: `nlm chats delete <id> --confirm`) only
+after explicit approval; it permanently deletes the notebook's full chat history.
 
 #### CLI Commands
 
@@ -765,6 +767,7 @@ nlm chats get <nb-id> <conversation-id>              # Specific session
 nlm chats export <nb-id> --format md -o chat.md      # Export to file
 nlm chats to-note <nb-id> <conversation-id> --turn 3 # Save one turn as a Note
 nlm chats to-note <nb-id> <conversation-id>          # Save the full chat as a Note
+nlm chats delete <nb-id> --confirm                   # Permanently delete all chat history
 
 # Resume a listed conversation with a follow-up question:
 nlm notebook query <nb-id> "follow-up question" --conversation-id <conversation-id>

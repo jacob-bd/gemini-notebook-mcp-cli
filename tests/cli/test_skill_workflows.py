@@ -32,7 +32,7 @@ def test_bundled_skill_documents_interactive_report_workflow():
 
     # Skill routes to the workflow and reflects the current MCP surface.
     assert "Workflow 17" in skill
-    assert "54 tools" in skill
+    assert "55 tools" in skill
     assert "--format Interactive" in skill
 
     # The workflow covers every stage an agent performs end to end.

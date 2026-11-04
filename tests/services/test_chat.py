@@ -301,6 +301,7 @@ class TestDeleteChatHistory:
         result = delete_chat_history(mock_client, "nb-123")
 
         assert result["notebook_id"] == "nb-123"
+        assert result["conversation_id"] == "conv-123"
         assert "deleted" in result["message"].lower()
         mock_client.delete_chat_history.assert_called_once_with("nb-123", "conv-123")
 
@@ -315,6 +316,13 @@ class TestDeleteChatHistory:
         mock_client.delete_chat_history.side_effect = RuntimeError("server error")
 
         with pytest.raises(ServiceError, match="Failed to delete"):
+            delete_chat_history(mock_client, "nb-123")
+
+    def test_unacknowledged_deletion_raises_service_error(self, mock_client):
+        mock_client.get_conversation_id.return_value = "conv-123"
+        mock_client.delete_chat_history.return_value = False
+
+        with pytest.raises(ServiceError, match="not acknowledged"):
             delete_chat_history(mock_client, "nb-123")
 
 

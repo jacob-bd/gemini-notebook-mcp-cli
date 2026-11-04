@@ -12,7 +12,7 @@ from notebooklm_tools.services import ServiceError, chats
 console = Console()
 chats_app = typer.Typer(
     name="chats",
-    help="List, view, and export chat sessions for a notebook.",
+    help="List, view, export, and delete chat sessions for a notebook.",
     no_args_is_help=True,
 )
 
@@ -139,5 +139,31 @@ def chats_to_note(
             print_json(data)
             return
         console.print(f"[green]✓[/green] Saved chat to note [cyan]{data.get('note_id', '')}[/cyan]")
+    except (ServiceError, NLMError) as e:
+        handle_error(e, json_output=json_output)
+
+
+@chats_app.command("delete")
+def chats_delete(
+    notebook: str = typer.Argument(..., help="Notebook ID or title alias"),
+    confirm: bool = typer.Option(False, "--confirm", "-y", help="Skip confirmation"),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help="Profile name"),
+) -> None:
+    """Permanently delete all chat history for a notebook."""
+    if not confirm:
+        typer.confirm(
+            f"Permanently delete all chat history for notebook '{notebook}'?",
+            abort=True,
+        )
+
+    try:
+        data = chats.delete_chat_history(notebook=notebook, profile=profile)
+        if json_output:
+            print_json(data)
+            return
+        console.print(
+            f"[green]✓[/green] Deleted chat history for [cyan]{data['notebook_title']}[/cyan]."
+        )
     except (ServiceError, NLMError) as e:
         handle_error(e, json_output=json_output)

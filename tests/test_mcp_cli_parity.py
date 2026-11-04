@@ -32,6 +32,7 @@ MAPPING = {
     "chat configure": "chat_configure",
     "chat start": CLI_ONLY,
     "chats export": "chat_export",
+    "chats delete": "chat_delete",
     "chats get": "chat_get",
     "chats list": "chat_list",
     "chats to-note": "chat_save_to_note",

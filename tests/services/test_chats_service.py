@@ -11,6 +11,29 @@ from notebooklm_tools.services.errors import NotFoundError, ValidationError
 class TestChatsService:
     """TDD tests for notebook chat sessions service."""
 
+    @patch("notebooklm_tools.services.chats.chat_service.delete_chat_history")
+    @patch("notebooklm_tools.services.chats._resolve_notebook")
+    @patch("notebooklm_tools.services.chats._get_client")
+    def test_delete_chat_history_resolves_notebook_and_profile(
+        self, mock_get_client, mock_resolve_notebook, mock_delete_chat
+    ):
+        client = MagicMock()
+        mock_get_client.return_value.__enter__.return_value = client
+        mock_resolve_notebook.return_value = ("nb-123", "Test Notebook")
+        mock_delete_chat.return_value = {
+            "notebook_id": "nb-123",
+            "conversation_id": "conv-123",
+            "message": "Chat history deleted.",
+        }
+
+        result = chats.delete_chat_history("my notebook", profile="work")
+
+        mock_get_client.assert_called_once_with("work")
+        mock_resolve_notebook.assert_called_once_with(client, "my notebook")
+        mock_delete_chat.assert_called_once_with(client, "nb-123")
+        assert result["notebook_title"] == "Test Notebook"
+        assert result["conversation_id"] == "conv-123"
+
     @patch("notebooklm_tools.services.chats.AuthManager")
     @patch("notebooklm_tools.services.chats.NotebookLMClient")
     def test_list_chat_sessions_success(self, mock_client_cls, mock_auth_cls):
@@ -167,3 +190,20 @@ class TestChatsService:
 
         with pytest.raises(ValidationError):
             chats.save_chat_to_note(notebook="nb-123", conversation_id="conv-abc-123")
+
+
+def test_delete_uses_injected_client_without_loading_another_profile():
+    client = MagicMock()
+    with (
+        patch("notebooklm_tools.services.chats._get_client") as load,
+        patch(
+            "notebooklm_tools.services.chats._resolve_notebook", return_value=("nb-123", "Notebook")
+        ),
+        patch(
+            "notebooklm_tools.services.chats.chat_service.delete_chat_history",
+            return_value={"notebook_id": "nb-123", "conversation_id": "conv-123"},
+        ) as delete,
+    ):
+        chats.delete_chat_history("Notebook", client=client)
+    load.assert_not_called()
+    delete.assert_called_once_with(client, "nb-123")

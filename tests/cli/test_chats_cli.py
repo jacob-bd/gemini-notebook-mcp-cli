@@ -10,7 +10,7 @@ runner = CliRunner()
 
 
 class TestChatsCLI:
-    """CLI tests for nlm chats list / nlm chat get / nlm chat export."""
+    """CLI tests for chat session commands."""
 
     @patch("notebooklm_tools.services.chats.list_chat_sessions")
     def test_chats_list_json(self, mock_list_chats):
@@ -64,3 +64,45 @@ class TestChatsCLI:
 
         assert result.exit_code == 0
         assert "Chat History - Test Notebook" in result.stdout
+
+    @patch("notebooklm_tools.services.chats.delete_chat_history")
+    def test_chats_delete_requires_confirmation(self, mock_delete_chat):
+        result = runner.invoke(app, ["chats", "delete", "nb-123"], input="n\n")
+
+        assert result.exit_code != 0
+        mock_delete_chat.assert_not_called()
+
+    @patch("notebooklm_tools.services.chats.delete_chat_history")
+    def test_chats_delete_confirmed(self, mock_delete_chat):
+        mock_delete_chat.return_value = {
+            "notebook_id": "nb-123",
+            "notebook_title": "Test Notebook",
+            "conversation_id": "conv-123",
+            "message": "Chat history deleted.",
+        }
+
+        result = runner.invoke(
+            app,
+            ["chats", "delete", "nb-123", "--confirm", "--profile", "work"],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted chat history for Test Notebook" in result.stdout
+        mock_delete_chat.assert_called_once_with(notebook="nb-123", profile="work")
+
+    @patch("notebooklm_tools.services.chats.delete_chat_history")
+    def test_chats_delete_json(self, mock_delete_chat):
+        mock_delete_chat.return_value = {
+            "notebook_id": "nb-123",
+            "notebook_title": "Test Notebook",
+            "conversation_id": "conv-123",
+            "message": "Chat history deleted.",
+        }
+
+        result = runner.invoke(
+            app,
+            ["chats", "delete", "nb-123", "--confirm", "--json"],
+        )
+
+        assert result.exit_code == 0
+        assert '"conversation_id": "conv-123"' in result.stdout

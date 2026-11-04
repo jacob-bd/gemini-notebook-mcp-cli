@@ -153,7 +153,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 
 - **[Getting Started](docs/GETTING_STARTED.md)** — Install, login, agent setup, and migration from another Gemini Notebook MCP
 - **[CLI Guide](docs/CLI_GUIDE.md)** — Complete command reference
-- **[MCP Guide](docs/MCP_GUIDE.md)** — All 53 MCP tools with examples
+- **[MCP Guide](docs/MCP_GUIDE.md)** — All 55 MCP tools with examples
 - **[Authentication](docs/AUTHENTICATION.md)** — Setup and troubleshooting
 - **[Remote MCP](docs/REMOTE_MCP.md)** — Web/mobile connector feasibility, security, and authentication limitations
 - **[API Reference](docs/API_REFERENCE.md)** — Internal API docs for contributors
@@ -452,7 +452,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **54 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **55 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 

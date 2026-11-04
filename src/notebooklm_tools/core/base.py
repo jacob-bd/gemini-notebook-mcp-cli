@@ -270,6 +270,7 @@ class BaseClient:
     RPC_ADD_SOURCE = "izAoDd"  # Used for URL, text, and Drive sources (legacy)
     RPC_ADD_SOURCE_V2 = "ozz5Z"  # URL source addition (new rollout, issue #121)
     RPC_ADD_SOURCE_FILE = "o4cbdc"  # Register file for resumable upload
+    RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"  # Read-only indexed passage retrieval
     RPC_GET_SOURCE = "hizoJc"  # Get source details
     RPC_CHECK_FRESHNESS = "yR9Yof"  # Check if Drive source is stale
     RPC_SYNC_DRIVE = "FLmJqe"  # Sync Drive source with latest content

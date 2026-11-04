@@ -1,11 +1,12 @@
 # Gemini Notebook (formerly Google NotebookLM) MCP - Comprehensive Test Plan
 
-**Purpose:** Verify all **54 MCP tools** work correctly.
+**Purpose:** Verify all **55 MCP tools** work correctly.
 
 **Version:** 2.7 (Updated 2026-09-27 - synchronized current MCP surface)
 
 **Changes from v2.6:**
-- Current tool count: 54 tools — adds `chat_delete` with an explicit confirmation gate.
+- Current tool count: 55 tools — adds `chat_delete` with an explicit confirmation gate.
+- Current tool count: 55 tools — adds `profile`, `alias` and `chat_save_to_note`, plus `pipeline` create and profile info in `server_info` (v0.15.0).
 
 **Historical changes from v2.1:**
 - The test plan previously covered 39 tools, including consolidated notes, labels, async query, batch, pipeline, tags, and server_info.
@@ -1416,3 +1417,5 @@ terminal (not an agent's shell — it refuses non-interactive sessions).
 
 ### Chat deletion
 Verify refusal without confirmation, cancellation in the CLI, and successful deletion on a disposable notebook. Confirm MCP deletion uses its active authenticated client, cached turns are cleared, and a missing acknowledgement produces an error.
+### Experimental source_search
+With the feature disabled, verify a disabled error. Enable it, search using a notebook alias, and verify bounded passages and source attribution. Check that a foreign source filter is rejected and debug logs contain no query or excerpt.

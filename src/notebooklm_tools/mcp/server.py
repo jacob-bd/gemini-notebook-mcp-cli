@@ -103,6 +103,7 @@ def _register_tools() -> None:
         downloads,
         exports,
         labels,
+        native_source_search,
         notebooks,
         notes,
         pipeline,
@@ -117,7 +118,7 @@ def _register_tools() -> None:
     )
     from .tools._utils import register_all_tools
 
-    # Register collected tools with mcp
+    # Register collected tools, including privacy-sensitive unlogged tools.
     register_all_tools(mcp)
 
     # Optionally hide tool groups/tools via environment variables (opt-in).

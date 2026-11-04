@@ -1,5 +1,5 @@
 <!-- nlm-skill-start -->
-<!-- nlm-version: 0.15.9 -->
+<!-- nlm-version: 0.16.0 -->
 ## NLM - Gemini Notebook (formerly Google NotebookLM) CLI Expert
 
 **Triggers:** "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast", "audio overview", "research"
@@ -100,3 +100,8 @@ nlm skill update <tool>   # Update existing skill
 Or view inline: `nlm --ai`
 
 <!-- nlm-skill-end -->
+
+### New in 0.16.0
+
+- Experimental MCP source_search retrieves bounded, source-attributed passages. Off by default; enable NOTEBOOKLM_ENABLE_NATIVE_SOURCE_SEARCH=1. Supports notebook aliases and native source UUID filters. No CLI equivalent.
+- chat_delete / nlm chats delete permanently clears notebook chat turns after explicit confirmation. The persistent conversation ID can remain. Use the active authenticated MCP client and never replay uncertain deletion requests.

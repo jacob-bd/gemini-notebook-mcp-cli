@@ -6,7 +6,6 @@
 
 **Changes from v2.6:**
 - Current tool count: 55 tools — adds `chat_delete` with an explicit confirmation gate.
-- Current tool count: 55 tools — adds `profile`, `alias` and `chat_save_to_note`, plus `pipeline` create and profile info in `server_info` (v0.15.0).
 
 **Historical changes from v2.1:**
 - The test plan previously covered 39 tools, including consolidated notes, labels, async query, batch, pipeline, tags, and server_info.

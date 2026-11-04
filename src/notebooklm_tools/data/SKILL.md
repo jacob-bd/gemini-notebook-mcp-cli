@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.15.9"
+version: "0.16.0"
 description: 'Expert guide for the Gemini Notebook (formerly Google NotebookLM) CLI (`nlm`) and MCP server - interfaces for Gemini Notebook. Use this skill when users want to interact with Gemini Notebook programmatically, including: creating/managing notebooks, checking plan usage and quota windows, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, interactive reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating Gemini Notebook workflows. Triggers on mentions of "nlm", "notebooklm", "Gemini Notebook", "plan usage", "quota", "podcast generation", "audio overview", "interactive report", "lesson report", "refactor document", "critique draft", or any Gemini Notebook-related automation task.'
 ---
 
@@ -52,7 +52,7 @@ nlm usage --json        # Return usage data as machine-readable JSON
 
 1. **Authenticate when needed**: Run `nlm login` for first-time setup or confirmed stale/missing credentials. Saved cookies often remain usable for weeks.
 2. **Do not confuse network failures with expired auth**: `auth_status="unverified"` means the probe was inconclusive. Check connectivity or try an API call before asking the user to log in again.
-3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and 3x server error retries. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail. Automatic browser recovery has a per-process cooldown and failure budget; concurrent requests share an active recovery. Explicit `nlm auth refresh` bypasses these limits. Use `--http-only` when a browser must not open; it cannot renew browser-dependent PSIDTS cookies or revive a fully expired login.
+3. **Auto-Authentication Recovery**: The CLI includes automatic 3-layer auth recovery (CSRF refresh -> Token reload -> Headless Auth) and retries for explicitly classified read-only requests. Mutations are not replayed after ambiguous server errors. Most errors are handled automatically. You only need to manually run `nlm login` if all recovery layers fail. Automatic browser recovery has a per-process cooldown and failure budget; concurrent requests share an active recovery. Explicit `nlm auth refresh` bypasses these limits. Use `--http-only` when a browser must not open; it cannot renew browser-dependent PSIDTS cookies or revive a fully expired login.
 4. **⚠️ ALWAYS ASK USER BEFORE DELETE**: Before executing ANY delete command, ask the user for explicit confirmation. Deletions are **irreversible**. Show what will be deleted and warn about permanent data loss.
 5. **Always obtain approval before generation or deletion**: Direct
    `studio_create` and delete operations enforce `--confirm` / `confirm=True`.
@@ -378,6 +378,18 @@ nlm source delete <source-id> --confirm
 `source_list_drive` and `source_get_content` results omit that field. Use the CLI
 when the original URL is needed instead of assuming a field or inferring a URL
 from transcript text.
+
+### Experimental source passage search (MCP only, 0.16.0)
+
+Use source_search(notebook_id, query, source_ids=None, max_results=8,
+snippet_chars=900) to retrieve relevant excerpts without generating an answer.
+It is disabled unless NOTEBOOKLM_ENABLE_NATIVE_SOURCE_SEARCH=1 is set in the
+MCP server environment. Notebook aliases work. Optional source_ids must be a
+list of 1–10 source UUIDs belonging to the notebook. Queries are limited to
+1,000 characters; responses contain at most 20 passages, 1,800 characters per
+excerpt, and 12,000 excerpt characters total. Results rotate across source
+groups and do not assert a global relevance ranking. There is no CLI command.
+The upstream API is undocumented; keep this feature experimental.
 
 ### 4. Research (Source Discovery)
 

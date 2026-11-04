@@ -7,9 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-04
+
 ### Added
 
-- Added `nlm chats delete <notebook> --confirm` and the `chat_delete` MCP tool to permanently delete a notebook's server-side chat history. Both surfaces require explicit confirmation, support notebook IDs or titles, and return the deleted conversation ID.
+- Experimental MCP source passage search, disabled by default. Returns bounded source-attributed excerpts, supports notebook aliases and source filters, and avoids logging queries and passages ([#391](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/391)).
+- Confirmed chat-history deletion through CLI and MCP, using the active MCP connection and clearing its cached conversation ([#392](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/392)). Live testing corrected the deletion payload to match the current web UI.
+
+### Fixed
+
+- Prevent ambiguous-response replay for mutating and unknown RPC requests, including the mixed-use mind-map RPC; preserve safe retries for usage and enterprise listing ([#387](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/387)).
+- Use unique temporary collection names and report unconfirmed cleanup instead of hiding it ([#388](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/388)).
+- Reject ambiguous notebook titles and invalid concurrency, and deduplicate repeated batch targets ([#389](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/389)).
+- Stop authenticated HTML dumps and raw core RPC payload diagnostics ([#390](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/390)). Legacy files are not automatically removed.
+
+### Changed
+
+- Update setup-uv from 10.3.2 to 10.3.3 across CI and release workflows ([#385](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/385)).
+- Document all 55 MCP tools, search activation and limits, deletion semantics, and live release verification.
+
+### Credits
+
+Thanks to **@insane66613** for [#387](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/387), [#388](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/388), [#389](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/389), [#390](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/390), and [#391](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/391), and **@pluginmd** for [#392](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/392).
 
 ## [0.15.9] - 2026-11-02
 

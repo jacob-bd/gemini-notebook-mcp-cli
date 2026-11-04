@@ -227,7 +227,12 @@ class TestDeleteChatHistory:
             mixin.delete_chat_history("nb-123", "conv-456")
         mock_rpc.assert_called_once_with(
             mixin.RPC_DELETE_CHAT_HISTORY,
-            ["nb-123", "conv-456"],
+            [
+                [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],
+                "conv-456",
+                None,
+                1,
+            ],
             path="/notebook/nb-123",
             retry_server_errors=False,
         )

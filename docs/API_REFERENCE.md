@@ -2210,3 +2210,14 @@ quota" or as a free-tier account. Run `nlm auth refresh` and retry.
 
 ### Experimental native source retrieval (ASU5Oe)
 See [verified request and response structure](native-source-search-experimental.md#verified-request-structure). Read-only and disabled by default.
+
+### Delete notebook chat history (J7Gthc)
+
+Captured from the web UI on 2026-11-04. Notebook ID belongs in source-path;
+the body uses a consumer request header and conversation ID:
+
+    [[2, null, [1], [1, null, null, null, null, null, null, null, null, null, [1, 3]]], conversation_id, null, 1]
+
+Never replay this mutation after an ambiguous response. Successful deletion
+returns a non-null acknowledgement and clears turns; the persistent conversation
+ID may remain. Verify empty server turns rather than disappearance of the ID.

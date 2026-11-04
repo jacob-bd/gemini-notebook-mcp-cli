@@ -312,6 +312,7 @@ nlm chat configure <notebook-id> --response-length longer   # longer, default, s
 
 # NOTE: All CLI querying via `nlm notebook query` and MCP querying automatically persist 
 # their chat history natively into the NotebookLM web UI, enabling seamless cross-device sessions.
+nlm chats delete <notebook-id> --confirm  # Permanently delete all chat history
 ```
 
 **Verb-First:**

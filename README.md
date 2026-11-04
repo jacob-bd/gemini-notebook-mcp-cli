@@ -129,7 +129,7 @@ Then use natural language: _"Create a notebook about quantum computing and gener
 | Create notebook                               | `nlm notebook create`           | `notebook_create`                    |
 | Add Sources (URL, Text, Drive, File)          | `nlm source add`                | `source_add`                         |
 | Query notebook (persists to web UI)           | `nlm notebook query`            | `notebook_query`                     |
-| List/view/export chat sessions                | `nlm chats list/get/export`     | `chat_list`/`chat_get`/`chat_export` |
+| List/view/export/delete chat sessions         | `nlm chats list/get/export/delete` | `chat_list`/`chat_get`/`chat_export`/`chat_delete` |
 | Create Studio Content (Audio, Video, etc.)    | `nlm studio create`             | `studio_create`                      |
 | Interactive reports (read + embedded elements)| `nlm report get/elements/element` | `report` (action=get/elements/generate) |
 | Revise slide decks                            | `nlm slides revise`             | `studio_revise`                      |
@@ -452,7 +452,7 @@ For detailed instructions and troubleshooting, see **[docs/AUTHENTICATION.md](do
 
 ## MCP Configuration
 
-> **⚠️ Context Window Warning:** This MCP provides **53 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
+> **⚠️ Context Window Warning:** This MCP provides **54 tools**. Disable it when not using Gemini Notebook to preserve context. In Claude Code: `@gemini-notebook-mcp` to toggle. To keep it on but expose only a subset, see [Selective tool exposure](docs/MCP_GUIDE.md#selective-tool-exposure).
 
 ### Automatic Setup (Recommended)
 

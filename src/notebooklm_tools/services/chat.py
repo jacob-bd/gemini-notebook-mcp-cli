@@ -386,6 +386,7 @@ class DeleteChatHistoryResult(TypedDict):
     """Result of deleting chat history."""
 
     notebook_id: str
+    conversation_id: str
     message: str
 
 
@@ -416,12 +417,19 @@ def delete_chat_history(
         )
 
     try:
-        client.delete_chat_history(notebook_id, conv_id)
+        deleted = client.delete_chat_history(notebook_id, conv_id)
     except Exception as e:
         raise ServiceError(f"Failed to delete chat history: {e}") from e
 
+    if not deleted:
+        raise ServiceError(
+            "Chat history deletion was not acknowledged by the server.",
+            user_message="NotebookLM did not confirm that the chat history was deleted.",
+        )
+
     return {
         "notebook_id": notebook_id,
+        "conversation_id": conv_id,
         "message": "Chat history deleted.",
     }
 

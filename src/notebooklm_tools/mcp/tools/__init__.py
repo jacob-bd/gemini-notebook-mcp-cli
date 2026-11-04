@@ -10,7 +10,7 @@ from .chat import (
     notebook_query_start,
     notebook_query_status,
 )
-from .chats import chat_export, chat_get, chat_list, chat_save_to_note
+from .chats import chat_delete, chat_export, chat_get, chat_list, chat_save_to_note
 from .collections import (
     collection_create,
     collection_delete,
@@ -111,7 +111,7 @@ __all__ = [
     "studio_delete",
     "studio_revise",
     "report",
-    # Chat (7)
+    # Chat (8)
     "notebook_query",
     "notebook_query_start",
     "notebook_query_status",
@@ -119,6 +119,7 @@ __all__ = [
     "chat_list",
     "chat_get",
     "chat_export",
+    "chat_delete",
     "chat_save_to_note",
     # Exports (1)
     "export_artifact",

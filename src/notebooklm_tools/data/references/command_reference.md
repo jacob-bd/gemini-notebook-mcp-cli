@@ -1038,6 +1038,21 @@ nlm chats to-note <notebook-id> <conversation-id> [OPTIONS]
 | `--turn` | `-t` | 1-indexed turn to save (default: entire chat) |
 | `--title` | | Note title |
 | `--json` | | Output raw JSON |
+
+### nlm chats delete
+
+Permanently delete all server-side chat history for a notebook. The command
+prompts for confirmation unless `--confirm` is supplied.
+
+```bash
+nlm chats delete <notebook-id-or-title> [OPTIONS]
+```
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--confirm` | `-y` | Skip the interactive confirmation |
+| `--json` | | Output raw JSON |
+| `--profile` | `-p` | Use specific profile |
 | `--profile` | `-p` | Use specific profile |
 
 ---

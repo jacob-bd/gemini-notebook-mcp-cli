@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `nlm chats delete <notebook> --confirm` and the `chat_delete` MCP tool to permanently delete a notebook's server-side chat history. Both surfaces require explicit confirmation, support notebook IDs or titles, and return the deleted conversation ID.
+
 ## [0.15.9] - 2026-11-02
 
 ### Fixed

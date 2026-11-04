@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **53 tools** for AI assistants.
+Complete reference for the Gemini Notebook (formerly Google NotebookLM) MCP server — **54 tools** for AI assistants.
 
 ## Installation
 
@@ -113,7 +113,7 @@ to the notebook). For longer operations, use `notebook_query_start` and poll
 returns a structured error with a retry hint rather than an uninformative
 transport failure.
 
-### Chat Sessions (4 tools)
+### Chat Sessions (5 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -121,6 +121,7 @@ transport failure.
 | `chat_get` | Get full transcript of a chat session (defaults to latest) |
 | `chat_export` | Export a chat transcript to Markdown or JSON |
 | `chat_save_to_note` | Save a chat (or one turn) as a Note in the notebook |
+| `chat_delete` | Permanently delete all chat history for a notebook (requires `confirm=True`) |
 
 ### Studio Content (8 tools)
 
@@ -463,7 +464,7 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **53 tools** which consume context. Best practices:
+This MCP has **54 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@gemini-notebook-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset

@@ -12,6 +12,7 @@ from typing import Any
 from notebooklm_tools.core.auth import AuthManager
 from notebooklm_tools.core.client import NotebookLMClient
 from notebooklm_tools.core.exceptions import AuthenticationError
+from notebooklm_tools.services import chat as chat_service
 from notebooklm_tools.services.errors import (
     NotFoundError,
     ValidationError,
@@ -182,6 +183,26 @@ def get_chat_session(
         "conversation_id": target_conv_id,
         "turn_count": len(history),
         "transcript": history,
+    }
+
+
+def delete_chat_history(
+    notebook: str,
+    profile: str | None = None,
+) -> dict[str, Any]:
+    """Permanently delete the server-side chat history for a notebook.
+
+    Resolves the same notebook ID/title input accepted by the other ``chats``
+    commands, then delegates the destructive operation to the shared chat
+    service.
+    """
+    with _get_client(profile) as client:
+        notebook_id, notebook_title = _resolve_notebook(client, notebook)
+        result = chat_service.delete_chat_history(client, notebook_id)
+
+    return {
+        **result,
+        "notebook_title": notebook_title,
     }
 
 

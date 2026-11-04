@@ -107,3 +107,27 @@ def chat_save_to_note(
         return {"status": "success", **data}
     except Exception as e:
         return error_result(str(e))
+
+
+@logged_tool()
+def chat_delete(
+    notebook_id: str,
+    confirm: bool = False,
+) -> ResultDict:
+    """Permanently delete all chat history for a notebook. Requires confirmation.
+
+    Args:
+        notebook_id: Notebook ID or title alias
+        confirm: Must be True after user approval
+    """
+    if not confirm:
+        return error_result(
+            "Deletion not confirmed. Set confirm=True after user approval.",
+            warning="This action is IRREVERSIBLE. All chat history will be permanently deleted.",
+        )
+
+    try:
+        data = chats.delete_chat_history(notebook=notebook_id)
+        return {"status": "success", **data}
+    except Exception as e:
+        return error_result(str(e))

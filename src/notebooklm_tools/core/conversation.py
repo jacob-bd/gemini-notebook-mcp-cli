@@ -338,9 +338,16 @@ class ConversationMixin(BaseClient):
         Returns:
             True if the deletion was acknowledged by the server.
         """
+        # Captured from the web UI: consumer header, conversation ID, null, 1.
+        # The notebook ID is carried by source-path, not this body.
         result = self._call_rpc(
             self.RPC_DELETE_CHAT_HISTORY,
-            [notebook_id, conversation_id],
+            [
+                [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],
+                conversation_id,
+                None,
+                1,
+            ],
             path=f"/notebook/{notebook_id}",
             retry_server_errors=False,
         )

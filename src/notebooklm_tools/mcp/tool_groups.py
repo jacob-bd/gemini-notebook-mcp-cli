@@ -1,6 +1,6 @@
 """Optional group-based gating of MCP tools.
 
-The server registers a large tool set (53 tools). Clients that only need a
+The server registers a large tool set (54 tools). Clients that only need a
 subset can hide the rest to save context, without editing code, by toggling
 named groups or individual tools through environment variables.
 

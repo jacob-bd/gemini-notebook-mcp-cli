@@ -1,14 +1,4 @@
-"""Regression test for the debug_page.html dump permissions.
-
-Covers GHSA-747w-q55c-m74m: the dump was written with the process umask and
-chmod'd afterwards, leaving a window in which the authenticated page was
-world-readable. It must be created 0o600 atomically instead.
-"""
-
-import os
-import stat
-import sys
-from pathlib import Path
+"""CSRF extraction failure must not persist an authenticated HTML page."""
 
 import httpx
 import pytest
@@ -36,8 +26,7 @@ class _FakeClient:
         return _FakeResponse()
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes only")
-def test_debug_dump_is_created_private(tmp_path, monkeypatch):
+def test_csrf_failure_does_not_write_authenticated_html(tmp_path, monkeypatch):
     monkeypatch.setattr(httpx, "Client", _FakeClient)
     monkeypatch.setattr(base.BaseClient, "_get_httpx_cookies", lambda self: {})
     monkeypatch.setattr(
@@ -49,25 +38,7 @@ def test_debug_dump_is_created_private(tmp_path, monkeypatch):
     monkeypatch.setattr(type(client), "_get_base_url", lambda self: "https://notebook.google.com")
     monkeypatch.setattr(type(client), "_is_enterprise", lambda self: False)
 
-    # The file must be private at creation, not narrowed afterwards. A
-    # post-hoc chmod leaves a window, and this codebase suppressed its
-    # OSError, so a failed chmod left the dump world-readable forever.
-    # Patching chmod to fail proves the mode does not depend on it.
-    def _refuse_chmod(self, mode):
-        raise OSError("chmod refused")
+    with pytest.raises(ValueError, match="no HTML was saved"):
+        client._refresh_auth_tokens()
 
-    monkeypatch.setattr(Path, "chmod", _refuse_chmod)
-
-    # A loose umask must not widen the file either.
-    old_umask = os.umask(0o000)
-    try:
-        with pytest.raises(ValueError, match="Could not extract CSRF token"):
-            client._refresh_auth_tokens()
-    finally:
-        os.umask(old_umask)
-
-    debug_file = tmp_path / "debug_page.html"
-    assert debug_file.exists(), "debug dump should have been written"
-    mode = stat.S_IMODE(debug_file.stat().st_mode)
-    assert mode == 0o600, f"expected 0o600, got {oct(mode)}"
-    assert debug_file.read_text() == _FakeResponse.text
+    assert not (tmp_path / "debug_page.html").exists()

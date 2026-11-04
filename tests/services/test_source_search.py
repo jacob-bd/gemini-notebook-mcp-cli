@@ -232,7 +232,9 @@ def test_native_rpc_suppresses_debug_payload_logging(caplog):
     from notebooklm_tools.core.base import BaseClient
 
     fake = type("MinimalClient", (), {})()
-    response_obj = Mock(status_code=200, text="PRIVATE_PASSAGE_DATA")
+    response_obj = Mock(
+        status_code=200, text="PRIVATE_PASSAGE_DATA", content=b"PRIVATE_PASSAGE_DATA"
+    )
     transport = Mock()
     transport.post.return_value = response_obj
     fake.RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"
@@ -241,9 +243,10 @@ def test_native_rpc_suppresses_debug_payload_logging(caplog):
     fake._build_request_body = lambda *_args: "PRIVATE_QUERY_DATA"
     fake._build_url = lambda *_args: "https://notebooklm.google.com/test"
     fake._parse_response = lambda *_args: []
+    fake._extract_present_rpc_ids = lambda *_args: []
     fake._extract_rpc_result = lambda *_args: [["PRIVATE_PASSAGE_DATA"]]
 
-    with caplog.at_level(logging.DEBUG, logger="notebooklm_tools.core.base"):
+    with caplog.at_level(logging.DEBUG, logger="notebooklm_mcp.api"):
         BaseClient._call_rpc(fake, "ASU5Oe", ["PRIVATE_QUERY_DATA"])
     assert "PRIVATE_QUERY_DATA" not in caplog.text
     assert "PRIVATE_PASSAGE_DATA" not in caplog.text
@@ -256,3 +259,16 @@ async def test_mcp_registers_without_logged_tool_wrapper():
     tool = await server.mcp.get_tool("source_search")
     assert tool is not None
     assert tool.name == "source_search"
+
+
+def test_mcp_resolves_notebook_alias(monkeypatch):
+    monkeypatch.setenv("NOTEBOOKLM_ENABLE_NATIVE_SOURCE_SEARCH", "1")
+    client = native_client(monkeypatch)
+    monkeypatch.setattr(mcp_tool, "get_client", lambda: client)
+    monkeypatch.setattr(
+        "notebooklm_tools.services.aliases.resolve",
+        lambda value: NB if value == "case-notes" else value,
+    )
+    result = mcp_tool.source_search("case-notes", "q")
+    assert result["status"] == "success"
+    assert result["notebook_id"] == NB

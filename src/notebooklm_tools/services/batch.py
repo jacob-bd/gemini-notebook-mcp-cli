@@ -51,6 +51,11 @@ def _run_batch(
     max_concurrent: int = 5,
 ) -> BatchResult:
     """Execute a function across multiple targets in parallel."""
+    if not isinstance(max_concurrent, int) or not 1 <= max_concurrent <= 8:
+        raise ValidationError(
+            "max_concurrent must be between 1 and 8.",
+            user_message="Concurrency must be between 1 and 8.",
+        )
     results: list[BatchItemResult] = []
 
     with ThreadPoolExecutor(max_workers=min(max_concurrent, len(targets))) as executor:

@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from notebooklm_tools.services import notebooks as notebooks_service
+from notebooklm_tools.services.errors import ValidationError
 
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"
@@ -21,7 +22,7 @@ MAX_SNIPPET_CHARS = 1800
 MAX_TOTAL_CHARS = 12000
 
 
-class SourceSearchError(ValueError):
+class SourceSearchError(ValidationError):
     """Input or response error with sanitized, non-content-bearing message."""
 
 

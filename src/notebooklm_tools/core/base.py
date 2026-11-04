@@ -35,12 +35,7 @@ from .retry import (
     RETRYABLE_CONNECT_ERRORS,
     is_retryable_error,
 )
-from .utils import (
-    RPC_NAMES,
-    _decode_request_body,
-    _format_debug_json,
-    _parse_url_params,
-)
+from .utils import RPC_NAMES
 
 # Configure logger (API internals only logged at DEBUG level, usually disabled)
 logger = logging.getLogger("notebooklm_mcp.api")
@@ -253,8 +248,8 @@ class BaseClient:
     RPC_ADD_SOURCE = "izAoDd"  # Used for URL, text, and Drive sources (legacy)
     RPC_ADD_SOURCE_V2 = "ozz5Z"  # URL source addition (new rollout, issue #121)
     RPC_ADD_SOURCE_FILE = "o4cbdc"  # Register file for resumable upload
-    RPC_GET_SOURCE = "hizoJc"  # Get source details
     RPC_SEARCH_RELEVANT_CHUNKS = "ASU5Oe"  # Read-only indexed passage retrieval
+    RPC_GET_SOURCE = "hizoJc"  # Get source details
     RPC_CHECK_FRESHNESS = "yR9Yof"  # Check if Drive source is stale
     RPC_SYNC_DRIVE = "FLmJqe"  # Sync Drive source with latest content
     RPC_DELETE_SOURCE = "tGMBJ"  # Delete a source from notebook
@@ -1009,33 +1004,15 @@ class BaseClient:
         body = self._build_request_body(rpc_id, params)
         url = self._build_url(rpc_id, path)
 
-        # Passage retrieval can contain sensitive source text and search queries.
-        # Keep debug payload logging disabled for this RPC.
-        safe_debug = (
-            logger.isEnabledFor(logging.DEBUG) and rpc_id != self.RPC_SEARCH_RELEVANT_CHUNKS
-        )
-        if safe_debug:
-            method_name = RPC_NAMES.get(rpc_id, "unknown")
-            logger.debug("=" * 70)
-            logger.debug(f"RPC Call: {rpc_id} ({method_name})")
-            logger.debug("-" * 70)
-
-            # Parse and display URL params
-            url_params = _parse_url_params(url)
-            logger.debug("URL Parameters:")
-            for key, value in url_params.items():
-                logger.debug(f"  {key}: {value}")
-
-            # Decode and display request body
-            logger.debug("-" * 70)
-            logger.debug("Request Params:")
-            decoded_body = _decode_request_body(body)
-            if "params" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["params"]))
-            elif "f.req" in decoded_body:
-                logger.debug(_format_debug_json(decoded_body["f.req"]))
-            else:
-                logger.debug(_format_debug_json(decoded_body))
+        # Diagnostic output must never include notebook content, URL session
+        # parameters, RPC request payloads, or authentication-related data.
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "RPC Call: %s (%s); request_bytes=%d",
+                rpc_id,
+                RPC_NAMES.get(rpc_id, "unknown"),
+                len(body),
+            )
 
         try:
             if timeout:
@@ -1043,30 +1020,22 @@ class BaseClient:
             else:
                 response = client.post(url, content=body)
 
-            # Never include ASU5Oe passage content in debug diagnostics.
-            if safe_debug:
-                logger.debug("-" * 70)
-                logger.debug(f"Response Status: {response.status_code}")
+            # Preserve status and size for diagnosis, never authenticated body.
+            if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
-                    "Raw response (first 2000 chars): %s",
-                    response.text[:2000] if response.text else "(empty)",
+                    "RPC response: status=%d; bytes=%d", response.status_code, len(response.content)
                 )
-                logger.debug("=" * 70)
 
             response.raise_for_status()
 
             # Check for RPC-level errors (soft auth failure)
             parsed = self._parse_response(response.text)
-            if safe_debug:
+            if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("RPC IDs in response: %s", self._extract_present_rpc_ids(parsed))
             result = self._extract_rpc_result(parsed, rpc_id)
 
-            # Never log retrieved source passages, even in debug mode.
-            if safe_debug:
-                logger.debug("-" * 70)
-                logger.debug("Response Data:")
-                logger.debug(_format_debug_json(result))
-                logger.debug("=" * 70)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("RPC result received: type=%s", type(result).__name__)
 
             return result
 
@@ -1321,27 +1290,11 @@ class BaseClient:
 
             csrf_token = extract_csrf_from_page_source(html)
             if not csrf_token:
-                # Save HTML for debugging
-                from notebooklm_tools.utils.config import get_storage_dir
-
-                debug_dir = get_storage_dir()
-                debug_path = debug_dir / "debug_page.html"
-                # The dump is the authenticated page: session identifiers and
-                # notebook metadata. Create it 0o600 atomically rather than
-                # writing first and narrowing after, which leaves a window in
-                # which the file is world-readable.
-                fd = os.open(str(debug_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-                try:
-                    f = os.fdopen(fd, "w", encoding="utf-8")
-                except BaseException:
-                    os.close(fd)
-                    raise
-                with f:
-                    f.write(html)
+                # The authenticated page can contain session and notebook
+                # metadata. Never persist or log its raw HTML on failure.
                 raise ValueError(
-                    f"Could not extract CSRF token from page. "
-                    f"Page saved to {debug_path} for debugging. "
-                    f"The page structure may have changed."
+                    "Could not extract CSRF token from page. "
+                    "The page structure may have changed; no HTML was saved."
                 )
 
             # Extract session ID (FdrFJe) - optional but helps

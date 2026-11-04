@@ -118,16 +118,24 @@ def _resolve_notebook_ids(
     if notebook_names:
         # Try to match by title first, then treat as IDs
         all_nbs = notebooks_service.list_notebooks(client)
-        title_map = {nb["title"].lower(): (nb["id"], nb["title"]) for nb in all_nbs["notebooks"]}
+        title_map: dict[str, list[tuple[str, str]]] = {}
+        for nb in all_nbs["notebooks"]:
+            title_map.setdefault(nb["title"].strip().lower(), []).append((nb["id"], nb["title"]))
 
         resolved = []
+        seen_ids: set[str] = set()
         for name in notebook_names:
             name_lower = name.strip().lower()
-            if name_lower in title_map:
-                resolved.append(title_map[name_lower])
-            else:
-                # Assume it's an ID
-                resolved.append((name.strip(), name.strip()))
+            matches = title_map.get(name_lower, [])
+            if len(matches) > 1:
+                raise ValidationError(
+                    f"Ambiguous notebook title: {name!r}",
+                    user_message=f"Multiple notebooks are named {name!r}. Specify a notebook ID.",
+                )
+            target = matches[0] if matches else (name.strip(), name.strip())
+            if target[0] not in seen_ids:
+                resolved.append(target)
+                seen_ids.add(target[0])
         return resolved
 
     return []
@@ -160,6 +168,11 @@ def cross_notebook_query(
         ValidationError: If query or selection is invalid
         ServiceError: If resolution fails
     """
+    if not isinstance(max_concurrent, int) or not 1 <= max_concurrent <= 8:
+        raise ValidationError(
+            "max_concurrent must be between 1 and 8.",
+            user_message="Concurrency must be between 1 and 8.",
+        )
     if not query_text or not query_text.strip():
         raise ValidationError(
             "Query text is required.",

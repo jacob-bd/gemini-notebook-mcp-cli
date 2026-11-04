@@ -423,8 +423,18 @@ def unlogged_tool() -> Callable[[Callable[P, R]], Callable[P, R]]:
     """
 
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
-        _tool_registry.append((func.__name__, cast(Callable[..., Any], func)))
-        return func
+        sig = inspect.signature(func)
+
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            args, kwargs = _resolve_notebook_alias(sig, args, kwargs)
+            result = func(*args, **kwargs)
+            maybe_attach_mcp_notice(result)
+            maybe_attach_active_profile_note(result, func.__name__)
+            return result
+
+        _tool_registry.append((func.__name__, cast(Callable[..., Any], wrapper)))
+        return wrapper
 
     return decorator
 

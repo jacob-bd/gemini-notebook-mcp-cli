@@ -68,7 +68,7 @@ nlm usage --json        # Return usage data as machine-readable JSON
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 14. **Check plan usage before quota-limited work**: Run `nlm usage` (MCP: `usage_get`) before expensive chat or Studio work when budget availability matters. It reports measured compute usage, remaining percentage, and UTC reset times for the rolling and weekly windows. If the check returns an authentication error, refresh the session instead of treating the allowance as exhausted.
 
-**Current MCP surface:** 53 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 54 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, `tag`, `profile`, and `alias`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`. The
 read-only `usage_get` tool reports rolling and weekly plan usage windows.

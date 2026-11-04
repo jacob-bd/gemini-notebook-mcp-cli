@@ -163,8 +163,7 @@ def chats_delete(
             print_json(data)
             return
         console.print(
-            f"[green]✓[/green] Deleted chat history for "
-            f"[cyan]{data['notebook_title']}[/cyan]."
+            f"[green]✓[/green] Deleted chat history for [cyan]{data['notebook_title']}[/cyan]."
         )
     except (ServiceError, NLMError) as e:
         handle_error(e, json_output=json_output)

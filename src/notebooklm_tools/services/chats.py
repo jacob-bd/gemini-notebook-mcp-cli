@@ -189,21 +189,16 @@ def get_chat_session(
 def delete_chat_history(
     notebook: str,
     profile: str | None = None,
+    *,
+    client: NotebookLMClient | None = None,
 ) -> dict[str, Any]:
-    """Permanently delete the server-side chat history for a notebook.
-
-    Resolves the same notebook ID/title input accepted by the other ``chats``
-    commands, then delegates the destructive operation to the shared chat
-    service.
-    """
-    with _get_client(profile) as client:
-        notebook_id, notebook_title = _resolve_notebook(client, notebook)
-        result = chat_service.delete_chat_history(client, notebook_id)
-
-    return {
-        **result,
-        "notebook_title": notebook_title,
-    }
+    """Delete history using the caller's authenticated client when supplied."""
+    if client is None:
+        with _get_client(profile) as owned_client:
+            return delete_chat_history(notebook, client=owned_client)
+    notebook_id, notebook_title = _resolve_notebook(client, notebook)
+    result = chat_service.delete_chat_history(client, notebook_id)
+    return {**result, "notebook_title": notebook_title}
 
 
 def export_chat_session(

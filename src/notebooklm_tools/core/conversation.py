@@ -342,6 +342,7 @@ class ConversationMixin(BaseClient):
             self.RPC_DELETE_CHAT_HISTORY,
             [notebook_id, conversation_id],
             path=f"/notebook/{notebook_id}",
+            retry_server_errors=False,
         )
         # Also clear local cache if present
         with self._state_lock:

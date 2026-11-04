@@ -229,6 +229,7 @@ class TestDeleteChatHistory:
             mixin.RPC_DELETE_CHAT_HISTORY,
             ["nb-123", "conv-456"],
             path="/notebook/nb-123",
+            retry_server_errors=False,
         )
 
 

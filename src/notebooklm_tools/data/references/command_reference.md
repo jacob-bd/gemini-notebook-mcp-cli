@@ -1053,7 +1053,6 @@ nlm chats delete <notebook-id-or-title> [OPTIONS]
 | `--confirm` | `-y` | Skip the interactive confirmation |
 | `--json` | | Output raw JSON |
 | `--profile` | `-p` | Use specific profile |
-| `--profile` | `-p` | Use specific profile |
 
 ---
 

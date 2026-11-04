@@ -1,6 +1,6 @@
 """MCP tools for notebook chat sessions."""
 
-from notebooklm_tools.mcp.tools._utils import ResultDict, error_result, logged_tool
+from notebooklm_tools.mcp.tools._utils import ResultDict, error_result, get_client, logged_tool
 from notebooklm_tools.services import chats
 
 
@@ -127,7 +127,7 @@ def chat_delete(
         )
 
     try:
-        data = chats.delete_chat_history(notebook=notebook_id)
+        data = chats.delete_chat_history(notebook=notebook_id, client=get_client())
         return {"status": "success", **data}
     except Exception as e:
         return error_result(str(e))

@@ -1413,3 +1413,6 @@ terminal (not an agent's shell — it refuses non-interactive sessions).
 39. Delete all sources with confirm=True
 40. Delete notebook [id] with confirm=True
 ```
+
+### Chat deletion
+Verify refusal without confirmation, cancellation in the CLI, and successful deletion on a disposable notebook. Confirm MCP deletion uses its active authenticated client, cached turns are cleared, and a missing acknowledgement produces an error.

@@ -190,3 +190,20 @@ class TestChatsService:
 
         with pytest.raises(ValidationError):
             chats.save_chat_to_note(notebook="nb-123", conversation_id="conv-abc-123")
+
+
+def test_delete_uses_injected_client_without_loading_another_profile():
+    client = MagicMock()
+    with (
+        patch("notebooklm_tools.services.chats._get_client") as load,
+        patch(
+            "notebooklm_tools.services.chats._resolve_notebook", return_value=("nb-123", "Notebook")
+        ),
+        patch(
+            "notebooklm_tools.services.chats.chat_service.delete_chat_history",
+            return_value={"notebook_id": "nb-123", "conversation_id": "conv-123"},
+        ) as delete,
+    ):
+        chats.delete_chat_history("Notebook", client=client)
+    load.assert_not_called()
+    delete.assert_called_once_with(client, "nb-123")

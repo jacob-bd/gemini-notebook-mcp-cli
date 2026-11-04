@@ -44,11 +44,11 @@ def test_matched_chunk_returns_parsed_json():
 
 
 def test_call_rpc_retries_on_resource_exhausted(monkeypatch):
-    """A code-8 RESOURCE_EXHAUSTED envelope triggers backoff retry, then succeeds."""
+    """A read-only RPC retries code-8 RESOURCE_EXHAUSTED, then succeeds."""
     client = _client()
 
-    exhausted = [[["wrb.fr", "EXPECTED", None, None, None, [8], "generic"]]]
-    ok = [[["wrb.fr", "EXPECTED", "[1]", None, None, None, "generic"]]]
+    exhausted = [[["wrb.fr", "wXbhsf", None, None, None, [8], "generic"]]]
+    ok = [[["wrb.fr", "wXbhsf", "[1]", None, None, None, "generic"]]]
 
     fake_resp = type(
         "R", (), {"text": "", "status_code": 200, "raise_for_status": lambda self: None}
@@ -60,7 +60,7 @@ def test_call_rpc_retries_on_resource_exhausted(monkeypatch):
         patch("time.sleep"),
     ):
         mock_get_client.return_value.post.return_value = fake_resp
-        result = client._call_rpc("EXPECTED", [])
+        result = client._call_rpc("wXbhsf", [])
 
     assert result == [1]
 
@@ -180,8 +180,8 @@ def test_rate_limit_retry_limit_defaults_and_validation(monkeypatch):
 def test_resource_exhausted_has_configurable_retry_ceiling(monkeypatch):
     monkeypatch.setenv("NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES", "1")
     client = _client()
-    exhausted = [[["wrb.fr", "EXPECTED", None, None, None, [8], "generic"]]]
-    ok = [[["wrb.fr", "EXPECTED", "[1]", None, None, None, "generic"]]]
+    exhausted = [[["wrb.fr", "wXbhsf", None, None, None, [8], "generic"]]]
+    ok = [[["wrb.fr", "wXbhsf", "[1]", None, None, None, "generic"]]]
     response = _response_with_status(200)
 
     with (
@@ -190,7 +190,7 @@ def test_resource_exhausted_has_configurable_retry_ceiling(monkeypatch):
         patch("time.sleep") as sleep,
     ):
         mock_get_client.return_value.post.return_value = response
-        result = client._call_rpc("EXPECTED", [])
+        result = client._call_rpc("wXbhsf", [])
 
     assert result == [1]
     assert mock_get_client.return_value.post.call_count == 2
@@ -235,7 +235,7 @@ def test_http_429_surfaces_immediately_when_limit_is_zero(monkeypatch):
 def test_http_5xx_retries_are_not_disabled_by_rate_limit_policy(monkeypatch):
     monkeypatch.setenv("NOTEBOOKLM_RATE_LIMIT_MAX_RETRIES", "0")
     client = _client()
-    ok = [[["wrb.fr", "EXPECTED", "[1]", None, None, None, "generic"]]]
+    ok = [[["wrb.fr", "wXbhsf", "[1]", None, None, None, "generic"]]]
 
     with (
         patch.object(client, "_get_client") as mock_get_client,
@@ -246,7 +246,7 @@ def test_http_5xx_retries_are_not_disabled_by_rate_limit_policy(monkeypatch):
             _response_with_status(503),
             _response_with_status(200),
         ]
-        result = client._call_rpc("EXPECTED", [])
+        result = client._call_rpc("wXbhsf", [])
 
     assert result == [1]
     assert mock_get_client.return_value.post.call_count == 2

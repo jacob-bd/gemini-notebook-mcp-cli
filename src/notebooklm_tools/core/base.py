@@ -41,6 +41,28 @@ from .utils import RPC_NAMES
 logger = logging.getLogger("notebooklm_mcp.api")
 logger.setLevel(logging.WARNING)  # Suppress internal API logs by default
 
+# Only these verified read-only RPCs may be replayed after an ambiguous 5xx/429
+# or RESOURCE_EXHAUSTED response. Unknown RPC IDs fail closed: the provider may
+# already have committed a write before returning an error.
+_REPLAY_SAFE_READ_RPCS = frozenset(
+    {
+        "wXbhsf",
+        "rLM1Ne",
+        "hizoJc",
+        "yR9Yof",
+        "hPTbtc",
+        "khqZz",
+        "VfAZjd",
+        "tr032e",
+        "e3bVqc",
+        "gArtLc",
+        "v9rmvd",
+        "JFMDGd",
+        "rG2vCb",
+        "EylDcb",
+    }
+)
+
 
 def _safe_int_env(name: str, default: int) -> int:
     """Read an integer env var, falling back to `default` if missing or unparseable.
@@ -931,6 +953,7 @@ class BaseClient:
         path: str = "/",
         timeout: float | None = None,
         _server_retry: int = 0,
+        retry_server_errors: bool = True,
     ) -> Any:
         """Execute a batchexecute RPC through the experimental CDP transport."""
         self._prepare_cdp_transport(timeout if timeout is not None else DEFAULT_TIMEOUT)
@@ -947,7 +970,7 @@ class BaseClient:
             return self._extract_rpc_result(parsed, rpc_id)
         except ResourceExhaustedError:
             max_retries = _rate_limit_max_retries()
-            if _server_retry < max_retries:
+            if retry_server_errors and _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)
@@ -965,6 +988,7 @@ class BaseClient:
                     path,
                     timeout,
                     _server_retry=_server_retry + 1,
+                    retry_server_errors=retry_server_errors,
                 )
             raise
 
@@ -987,10 +1011,11 @@ class BaseClient:
         2. Reload cookies from disk (handles external re-authentication)
         3. Run headless auth (auto-refresh if Chrome profile has saved login)
 
-        retry_server_errors: False disables the HTTP 5xx/429 replay. Use for
-        non-idempotent mutations whose delivery may have succeeded (e.g. the
-        Rytqqe kickoff).
+        Ambiguous server responses are replayed only for explicitly allowlisted
+        read-only RPCs; mutation and unknown RPC IDs fail closed even when
+        retry_server_errors=True. Connection-not-established retries remain safe.
         """
+        retry_server_errors = retry_server_errors and rpc_id in _REPLAY_SAFE_READ_RPCS
         if self._cdp_rpc_transport_enabled():
             return self._call_rpc_via_cdp(
                 rpc_id,
@@ -998,6 +1023,7 @@ class BaseClient:
                 path,
                 timeout,
                 _server_retry=_server_retry,
+                retry_server_errors=retry_server_errors,
             )
 
         client = self._get_client()
@@ -1114,9 +1140,9 @@ class BaseClient:
             raise
 
         except ResourceExhaustedError:
-            # RPC-level rate limit (HTTP 200, error code 8). Back off and retry.
+            # RPC-level 429-equivalent error: do not replay uncertain mutations.
             max_retries = _rate_limit_max_retries()
-            if _server_retry < max_retries:
+            if retry_server_errors and _server_retry < max_retries:
                 import time as _time
 
                 delay = min(DEFAULT_BASE_DELAY * (2**_server_retry), DEFAULT_MAX_DELAY)

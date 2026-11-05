@@ -387,15 +387,28 @@ def list_stale_sources(
     try:
         notebook_id = get_alias_manager().resolve(notebook_id)
         with get_client(profile) as client:
-            sources = client.get_notebook_sources_with_types(notebook_id)
+            listing = sources_service.list_drive_sources(client, notebook_id)
 
-        stale_sources = [s for s in sources if not s.get("is_fresh", True)]
+        drive_sources = listing["drive_sources"]
+        stale_sources = [{**s, "is_stale": True} for s in drive_sources if s.get("stale") is True]
+        unknown_sources = [s for s in drive_sources if s.get("stale") is None]
 
         if not stale_sources:
-            console.print("[green]✓[/green] All Drive sources are up to date.")
+            if unknown_sources:
+                console.print(
+                    f"[yellow]?[/yellow] Freshness unavailable for "
+                    f"{len(unknown_sources)} Drive source(s); none confirmed stale."
+                )
+            else:
+                console.print("[green]✓[/green] All Drive sources are up to date.")
             return
 
         console.print(f"[yellow]⚠[/yellow] {len(stale_sources)} source(s) need syncing:")
+        if unknown_sources:
+            console.print(
+                f"[yellow]?[/yellow] Freshness unknown for "
+                f"{len(unknown_sources)} other Drive source(s)."
+            )
 
         fmt = detect_output_format(json_output)
         formatter = get_formatter(fmt, console)
@@ -421,6 +434,7 @@ def sync_sources(
     """Sync Drive sources with latest content."""
     try:
         notebook_id = get_alias_manager().resolve(notebook_id)
+        unknown_count = 0
 
         with get_client(profile) as client:
             if source_ids:
@@ -428,11 +442,22 @@ def sync_sources(
                     get_alias_manager().resolve(sid.strip()) for sid in source_ids.split(",")
                 ]
             else:
-                sources = client.get_notebook_sources_with_types(notebook_id)
-                ids_to_sync = [s["id"] for s in sources if not s.get("is_fresh", True)]
+                listing = sources_service.list_drive_sources(client, notebook_id)
+                ids_to_sync = [
+                    s["id"]
+                    for s in listing["drive_sources"]
+                    if s.get("stale") is True and s.get("can_sync") is True and s.get("id")
+                ]
+                unknown_count = sum(s.get("stale") is None for s in listing["drive_sources"])
 
         if not ids_to_sync:
-            console.print("[green]✓[/green] No sources need syncing.")
+            if not source_ids and unknown_count:
+                console.print(
+                    f"[yellow]?[/yellow] No confirmed stale/syncable sources; "
+                    f"freshness unknown for {unknown_count} Drive source(s)."
+                )
+            else:
+                console.print("[green]✓[/green] No sources need syncing.")
             return
 
         if not confirm:

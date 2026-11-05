@@ -435,6 +435,7 @@ def sync_sources(
     try:
         notebook_id = get_alias_manager().resolve(notebook_id)
         unknown_count = 0
+        unsyncable_count = 0
 
         with get_client(profile) as client:
             if source_ids:
@@ -449,13 +450,25 @@ def sync_sources(
                     if s.get("stale") is True and s.get("can_sync") is True and s.get("id")
                 ]
                 unknown_count = sum(s.get("stale") is None for s in listing["drive_sources"])
+                unsyncable_count = sum(
+                    s.get("stale") is True and not (s.get("can_sync") is True and s.get("id"))
+                    for s in listing["drive_sources"]
+                )
+
+        if unknown_count:
+            console.print(
+                f"[yellow]?[/yellow] Skipped: freshness unknown for "
+                f"{unknown_count} Drive source(s)."
+            )
+        if unsyncable_count:
+            console.print(
+                f"[yellow]⚠[/yellow] {unsyncable_count} stale Drive source(s) "
+                "cannot be synced automatically."
+            )
 
         if not ids_to_sync:
-            if not source_ids and unknown_count:
-                console.print(
-                    f"[yellow]?[/yellow] No confirmed stale/syncable sources; "
-                    f"freshness unknown for {unknown_count} Drive source(s)."
-                )
+            if unknown_count or unsyncable_count:
+                console.print("[yellow]No confirmed stale/syncable sources to sync.[/yellow]")
             else:
                 console.print("[green]✓[/green] No sources need syncing.")
             return

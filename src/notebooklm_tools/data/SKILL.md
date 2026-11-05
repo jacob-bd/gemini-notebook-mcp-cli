@@ -359,7 +359,7 @@ nlm source content <source-id> -o file.txt  # Export to file
 
 # Drive sync (for stale sources)
 nlm source stale <nb-id>               # List outdated Drive sources
-nlm source sync <nb-id> --confirm      # Sync all stale sources
+nlm source sync <nb-id> --confirm      # Sync confirmed stale, syncable sources
 nlm source sync <nb-id> --source-ids <ids> --confirm  # Sync specific
 
 # Rename

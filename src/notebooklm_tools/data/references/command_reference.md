@@ -454,7 +454,11 @@ nlm source stale <notebook-id> [OPTIONS]
 
 ### nlm source sync
 
-Sync Drive sources with latest content.
+Sync Drive sources with latest content. Without explicit source IDs, only confirmed
+stale sources eligible for automatic sync are selected. The command reports
+sources with unknown freshness and stale sources that cannot sync automatically,
+including when other sources are synced successfully. Explicit source IDs bypass
+the freshness selection.
 
 ```bash
 nlm source sync <notebook-id> [OPTIONS]

@@ -74,6 +74,9 @@ def test_default_sync_only_targets_stale_syncable_drive_sources(monkeypatch) -> 
     result = CliRunner().invoke(commands.app, ["sync", "nb", "--confirm"])
     assert result.exit_code == 0, result.output
     assert calls == [["a"]]
+    assert "Synced 1 source(s)" in result.output
+    assert "freshness unknown for 1 Drive source(s)" in result.output
+    assert "1 stale Drive source(s) cannot be synced automatically" in result.output
 
 
 def test_unknown_status_does_not_start_any_sync(monkeypatch) -> None:
@@ -81,4 +84,37 @@ def test_unknown_status_does_not_start_any_sync(monkeypatch) -> None:
     result = CliRunner().invoke(commands.app, ["sync", "nb", "--confirm"])
     assert result.exit_code == 0, result.output
     assert "freshness unknown" in result.output
+    assert calls == []
+
+
+def test_stale_unsyncable_sources_do_not_get_all_clear(monkeypatch) -> None:
+    calls = _setup(monkeypatch, [_drive("blocked", True, False)])
+    result = CliRunner().invoke(commands.app, ["sync", "nb", "--confirm"])
+    assert result.exit_code == 0, result.output
+    assert "1 stale Drive source(s) cannot be synced automatically" in result.output
+    assert "No sources need syncing" not in result.output
+    assert calls == []
+
+
+def test_explicit_sync_does_not_check_or_filter_freshness(monkeypatch) -> None:
+    calls = _setup(monkeypatch, [])
+
+    def unexpected_listing(*_):
+        raise AssertionError("Explicit source selection should not check freshness")
+
+    monkeypatch.setattr(commands.sources_service, "list_drive_sources", unexpected_listing)
+    result = CliRunner().invoke(commands.app, ["sync", "nb", "--source-ids", "a,b", "--confirm"])
+    assert result.exit_code == 0, result.output
+    assert calls == [["a", "b"]]
+    assert "Synced 2 source(s)" in result.output
+    assert "freshness unknown" not in result.output
+
+
+def test_fresh_sources_still_get_all_clear(monkeypatch) -> None:
+    calls = _setup(monkeypatch, [_drive("fresh", False)])
+    result = CliRunner().invoke(commands.app, ["sync", "nb", "--confirm"])
+    assert result.exit_code == 0, result.output
+    assert "No sources need syncing" in result.output
+    assert "freshness unknown" not in result.output
+    assert "cannot be synced automatically" not in result.output
     assert calls == []

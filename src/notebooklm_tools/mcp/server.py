@@ -92,6 +92,7 @@ async def health_check(request: Request) -> JSONResponse:
 def _register_tools() -> None:
     """Import and register all tools from the modular tools package."""
     # Import all tool modules to populate the registry
+    from .plugins import load_plugins
     from .tools import (  # noqa: F401
         aliases,
         auth,
@@ -120,6 +121,7 @@ def _register_tools() -> None:
 
     # Register collected tools, including privacy-sensitive unlogged tools.
     register_all_tools(mcp)
+    load_plugins(mcp)
 
     # Optionally hide tool groups/tools via environment variables (opt-in).
     from . import tool_groups

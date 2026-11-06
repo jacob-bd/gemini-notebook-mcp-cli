@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-11-06
+
+### Fixed
+
+- Report missing or malformed notebook source responses as lookup failures instead of treating them as empty notebooks. Studio source discovery now preserves lookup errors, including timeouts, rather than replacing them with a misleading “No sources found” message. Regression tests keep notes at response field 17 separate from sources. These diagnostic improvements do not establish that the reported issue is resolved ([#397](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/397)).
+- Distinguish unknown Google Drive freshness from confirmed stale sources in CLI listing and sync. Report sources skipped during sync instead of implying they were synchronized ([#396](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/396)).
+
+### Credits
+
+Thanks to **@insane66613** for the Drive freshness fix in [#396](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/396), and **@akperkins** for the detailed source-discovery report in [#397](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/397).
+
 ## [0.16.0] - 2026-11-04
 
 ### Added

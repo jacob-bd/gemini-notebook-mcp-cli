@@ -328,6 +328,26 @@ class SourceMixin(BaseClient):
         notebook_client = cast(_NotebookLookupProtocol, self)
         result = notebook_client.get_notebook(notebook_id)
 
+        if not isinstance(result, list) or not result:
+            raise RPCError("Could not read notebook sources: missing notebook response")
+        data = result[0] if isinstance(result[0], list) else result
+        if len(data) < 3 or not isinstance(data[2], str) or not data[2]:
+            raise RPCError("Could not read notebook sources: unexpected notebook response")
+        source_entries = data[1]
+        # Null is valid for an empty notebook. Field 17 contains notes, not sources.
+        if source_entries is not None and not isinstance(source_entries, list):
+            raise RPCError("Could not read notebook sources: unexpected source list")
+        for entry in source_entries or []:
+            if (
+                not isinstance(entry, list)
+                or len(entry) < 3
+                or not isinstance(entry[0], list)
+                or not entry[0]
+                or not isinstance(entry[0][0], str)
+                or not entry[0][0]
+            ):
+                raise RPCError("Could not read notebook sources: unexpected source entry")
+
         sources = []
         # The notebook data is wrapped in an outer array
         if result and isinstance(result, list) and len(result) >= 1:

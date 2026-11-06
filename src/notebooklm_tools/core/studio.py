@@ -44,13 +44,9 @@ class StudioMixin(BaseClient):
         Returns:
             List of source UUIDs, or empty list if none found
         """
-        try:
-            source_client = cast(_SourceLookupProtocol, self)
-            sources = source_client.get_notebook_sources_with_types(notebook_id)
-            return [s["id"] for s in sources if s.get("id")]
-        except Exception:
-            # Return empty list on error - caller methods will handle gracefully
-            return []
+        source_client = cast(_SourceLookupProtocol, self)
+        sources = source_client.get_notebook_sources_with_types(notebook_id)
+        return [s["id"] for s in sources if s.get("id")]
 
     def _audio_has_media_urls(self, artifact_data: list[Any]) -> bool:
         """Return True when an audio artifact exposes playable/downloadable media URLs."""

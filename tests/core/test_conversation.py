@@ -378,6 +378,70 @@ class TestQueryUsesServerConversationId:
         ]
         assert request_client_calls[0]["timeout"] == 45.0
 
+    def test_consumer_query_encodes_9_slot_streamed_payload(self):
+        """Consumer GenerateFreeFormStreamed encodes the full 9-slot request array,
+        including the 4-slot client capability descriptor at [3], notebook_id at [7],
+        and mode flag 1 at [8]."""
+        import urllib.parse
+
+        mixin = self._make_mixin()
+        with (
+            patch.object(mixin, "get_conversation_id", return_value="server-conv-id"),
+            patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class,
+        ):
+            mock_post = mock_client_class.return_value.__enter__.return_value.post
+            mock_post.return_value.text = ")]}'\n100\n" + json.dumps(
+                [["wrb.fr", None, json.dumps([["A grounded answer.", None, [], None, [1]]])]]
+            )
+            mock_post.return_value.raise_for_status = lambda: None
+
+            mixin.query("nb-123", "What changed?", source_ids=["src-1", "src-2"])
+
+        post_body = mock_post.call_args.kwargs["content"]
+        parsed_form = urllib.parse.parse_qs(post_body)
+        outer_f_req = json.loads(parsed_form["f.req"][0])
+        assert outer_f_req[0] is None
+        params = json.loads(outer_f_req[1])
+        assert len(params) == 9
+        assert params == [
+            [[["src-1"]], [["src-2"]]],
+            "What changed?",
+            None,
+            [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],
+            "server-conv-id",
+            None,
+            None,
+            "nb-123",
+            1,
+        ]
+
+    def test_enterprise_query_keeps_3_slot_resource_payload(self):
+        """Enterprise GenerateFreeFormStreamed retains its 3-slot resource_name payload."""
+        import urllib.parse
+
+        mixin = ConversationMixin(cookies={"test": "cookie"}, csrf_token="test")
+        mixin._is_enterprise = lambda: True
+        mixin._enterprise_project_id = "project-123"
+        mixin._location = "global"
+        with patch("notebooklm_tools.core.conversation._httpx.Client") as mock_client_class:
+            mock_post = mock_client_class.return_value.__enter__.return_value.post
+            mock_post.return_value.text = ")]}'\n100\n" + json.dumps(
+                [["wrb.fr", None, json.dumps([["Enterprise answer.", None, [], None, [1]]])]]
+            )
+            mock_post.return_value.raise_for_status = lambda: None
+
+            mixin.query("nb-123", "Enterprise question?", source_ids=["src-1"])
+
+        post_body = mock_post.call_args.kwargs["content"]
+        parsed_form = urllib.parse.parse_qs(post_body)
+        outer_f_req = json.loads(parsed_form["f.req"][0])
+        params = json.loads(outer_f_req[1])
+        assert params == [
+            [[["src-1"]]],
+            "Enterprise question?",
+            {"70000": "projects/project-123/locations/global/notebooks/nb-123"},
+        ]
+
 
 class TestConversationMixinMethods:
     """Test ConversationMixin method behavior."""

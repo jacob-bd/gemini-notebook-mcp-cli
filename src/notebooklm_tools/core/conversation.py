@@ -463,6 +463,7 @@ class ConversationMixin(BaseClient):
         # Build source IDs structure: [[[sid]]] for each source (3 brackets, not 4!)
         sources_array = [[[sid]] for sid in source_ids] if source_ids else []
 
+        params: list[Any]
         if getattr(self, "_is_enterprise", lambda: False)():
             # Enterprise query params structure:
             # [[[[sid]]], query, {"70000": "projects/{project_id}/locations/{location}/notebooks/{notebook_id}"}]
@@ -481,15 +482,32 @@ class ConversationMixin(BaseClient):
                 {"70000": resource_name},
             ]
         else:
-            # Query params structure (from network capture)
-            # For new conversations: params[2] = None
-            # For follow-ups: params[2] = [[answer, null, 2], [query, null, 1], ...]
+            # Consumer GenerateFreeFormStreamed 9-slot request structure
+            # (boq_labs-tailwind-frontend_20261105.11_p0):
+            #   [0] sources_array: [[[sid]], ...]
+            #   [1] query_text
+            #   [2] conversation_history: None for new, [[answer, null, 2], [query, null, 1], ...] for follow-ups
+            #   [3] client capability descriptor (same 4-slot header used by khqZz and e3bVqc/delete_chat_history)
+            #   [4] conversation_id
+            #   [5] drafted_context (None)
+            #   [6] tool_executions (None)
+            #   [7] notebook_id
+            #   [8] query_mode (1)
             params = [
                 sources_array,
                 query_text,
                 conversation_history,  # None for new, history array for follow-ups
-                [2, None, [1]],
+                [
+                    2,
+                    None,
+                    [1],
+                    [1, None, None, None, None, None, None, None, None, None, [1, 3]],
+                ],
                 conversation_id,
+                None,
+                None,
+                notebook_id,
+                1,
             ]
 
         # Use compact JSON format matching Chrome (no spaces)

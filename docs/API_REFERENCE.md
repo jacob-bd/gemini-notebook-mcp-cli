@@ -509,14 +509,18 @@ POST /_/LabsTailwindUi/data/google.internal.labs.tailwind.orchestration.v1.LabsT
 ### Query Request Structure
 ```python
 params = [
-    [  # Source IDs - each in nested array
-        [[["source_id_1"]]],
-        [[["source_id_2"]]],
+    [  # [0] Source IDs - [[[sid]], ...]
+        [["source_id_1"]],
+        [["source_id_2"]],
     ],
-    "Your question here",  # Query text
-    None,
-    [2, None, [1]],  # Config
-    "conversation-uuid"  # For follow-up questions
+    "Your question here",  # [1] Query text
+    None,  # [2] Conversation history (None for new, turn pairs for follow-ups)
+    [2, None, [1], [1, None, None, None, None, None, None, None, None, None, [1, 3]]],  # [3] Client capability descriptor
+    "conversation-uuid",  # [4] Conversation ID
+    None,  # [5] Drafted context (unused)
+    None,  # [6] Tool executions (unused)
+    "notebook-uuid",  # [7] Explicit notebook/project ID
+    1,  # [8] Query mode
 ]
 
 f_req = [None, json.dumps(params)]

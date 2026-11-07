@@ -52,6 +52,7 @@ TOOL_GROUPS: dict[str, set[str]] = {
         "source_sync_drive",
     },
     "chat": {
+        "gemini_notebook_conversation_list",
         "notebook_query",
         "chat_configure",
         "notebook_query_start",

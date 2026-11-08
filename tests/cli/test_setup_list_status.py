@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from rich.console import Console
 
 from notebooklm_tools.cli.commands import setup
@@ -95,3 +96,84 @@ def test_setup_list_shows_global_copilot_config(tmp_path, monkeypatch, capsys):
     output = console.export_text()
     assert "user profile" in output
     assert "✓" in output
+
+
+@pytest.mark.parametrize(
+    ("client", "path_getter"),
+    [
+        ("claude-desktop", "_claude_desktop_profile_paths"),
+        ("gemini", "_gemini_config_path"),
+        ("cursor", "_cursor_config_path"),
+        ("windsurf", "_windsurf_config_path"),
+        ("cline", "_cline_config_path"),
+        ("antigravity", "_antigravity_config_path"),
+        ("opencode", "_opencode_config_path"),
+    ],
+)
+@pytest.mark.parametrize("error_kind", ["malformed-json", "os-error"])
+def test_setup_list_isolates_config_errors(tmp_path, monkeypatch, client, path_getter, error_kind):
+    console = Console(record=True, width=240)
+    monkeypatch.setattr(setup, "console", console)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(setup, "_codex_config_path", lambda: tmp_path / ".codex")
+    monkeypatch.setattr(
+        setup,
+        "CLIENT_REGISTRY",
+        {key: setup.CLIENT_REGISTRY[key] for key in (client, "claude-code", "codex")},
+    )
+    configured = {"mcpServers": {setup.MCP_SERVER_NAME: {"command": setup.MCP_SERVER_CMD}}}
+    (tmp_path / ".claude.json").write_text(json.dumps(configured), encoding="utf-8")
+    broken = tmp_path / "broken.json"
+    original = '{"mcpServers": {,}'
+    broken.write_text(original, encoding="utf-8")
+    if client == "claude-desktop":
+        healthy_profile = tmp_path / "healthy.json"
+        healthy_profile.write_text(json.dumps(configured), encoding="utf-8")
+        monkeypatch.setattr(setup, path_getter, lambda: {"regular": broken, "3p": healthy_profile})
+    else:
+        monkeypatch.setattr(setup, path_getter, lambda: broken)
+
+    if error_kind == "os-error":
+        read_config = setup._read_json_config
+
+        def read_with_error(path):
+            if path == broken:
+                raise OSError("cannot read config")
+            return read_config(path)
+
+        monkeypatch.setattr(setup, "_read_json_config", read_with_error)
+
+    setup.setup_list()
+
+    output = console.export_text()
+    broken_row = next(line for line in output.splitlines() if "broken.json" in line)
+    assert setup.CLIENT_REGISTRY[client]["name"] in broken_row
+    assert "?" in broken_row
+    assert "✓" in next(line for line in output.splitlines() if "Claude Code" in line)
+    assert "-" in next(line for line in output.splitlines() if "config.toml" in line)
+    if client == "claude-desktop":
+        assert "regular" in broken_row
+        healthy_row = next(line for line in output.splitlines() if "healthy.json" in line)
+        assert "Relay AI / 3P" in healthy_row
+        assert "✓" in healthy_row
+    assert broken.read_text(encoding="utf-8") == original
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [("[mcp_servers", "?"), ("", "-"), ('model = "example"\n', "-")],
+    ids=["malformed", "empty", "unconfigured"],
+)
+def test_setup_list_codex_toml_status(tmp_path, monkeypatch, content, expected):
+    console = Console(record=True, width=180)
+    monkeypatch.setattr(setup, "console", console)
+    monkeypatch.setattr(setup, "_codex_config_path", lambda: tmp_path)
+    monkeypatch.setattr(setup, "CLIENT_REGISTRY", {"codex": setup.CLIENT_REGISTRY["codex"]})
+    (tmp_path / "config.toml").write_text(content, encoding="utf-8")
+
+    setup.setup_list()
+
+    output = console.export_text()
+    row = next(line for line in output.splitlines() if "config.toml" in line)
+    assert expected in row
+    assert "✓" not in row

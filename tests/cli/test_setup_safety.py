@@ -27,6 +27,32 @@ def test_missing_json_returns_empty_dict(tmp_path):
     assert read_json_config(path) == {}
 
 
+@pytest.mark.parametrize("content", ["", "   \n\t  "], ids=["empty", "whitespace"])
+def test_blank_json_returns_empty_dict(tmp_path, content):
+    path = tmp_path / "blank.json"
+    path.write_text(content, encoding="utf-8")
+
+    assert read_json_config(path) == {}
+    assert path.read_text(encoding="utf-8") == content
+
+
+def test_json_read_error_is_wrapped(tmp_path, monkeypatch):
+    path = tmp_path / "mcp.json"
+    path.write_text("{}", encoding="utf-8")
+    cause = OSError("cannot read config")
+
+    def fail_read(*args, **kwargs):
+        raise cause
+
+    monkeypatch.setattr(Path, "read_text", fail_read)
+
+    with pytest.raises(ConfigParseError) as exc_info:
+        read_json_config(path)
+    assert exc_info.value.path == path
+    assert exc_info.value.cause is cause
+    assert exc_info.value.__cause__ is cause
+
+
 def test_valid_json_returns_dict(tmp_path):
     path = tmp_path / "valid.json"
     path.write_text('{"mcpServers": {"test": {}}}', encoding="utf-8")

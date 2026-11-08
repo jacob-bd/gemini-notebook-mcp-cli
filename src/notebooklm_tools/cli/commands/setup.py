@@ -126,7 +126,7 @@ def _default_server_command() -> str:
 
 
 def _read_json_config(path: Path) -> dict:
-    """Read a JSON config file, returning empty dict if missing.
+    """Read a JSON config file, returning empty dict if missing or blank.
 
     Raises:
         ConfigParseError: If the file exists but is malformed JSON or not an object.
@@ -1838,7 +1838,13 @@ def setup_add(
         if profile is not None:
             console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
             raise typer.Exit(1)
-        _setup_all()
+        try:
+            _setup_all()
+        except ConfigParseError as exc:
+            console.print(
+                f"[red]Error:[/red] Cannot parse {exc.path}; fix or remove it before adding MCP."
+            )
+            raise typer.Exit(1) from exc
         return
 
     if client not in CLIENT_REGISTRY:
@@ -1882,10 +1888,16 @@ def setup_add(
         "opencode": _setup_opencode,
     }
 
-    if client == "claude-desktop":
-        success = _setup_claude_desktop(profile=profile)
-    else:
-        success = setup_fn[client]()
+    try:
+        if client == "claude-desktop":
+            success = _setup_claude_desktop(profile=profile)
+        else:
+            success = setup_fn[client]()
+    except ConfigParseError as exc:
+        console.print(
+            f"[red]Error:[/red] Cannot parse {exc.path}; fix or remove it before adding MCP."
+        )
+        raise typer.Exit(1) from exc
     if success:
         console.print(f"\n[dim]Restart {info['name']} to activate the MCP server.[/dim]")
 
@@ -1923,7 +1935,13 @@ def setup_remove(
         if profile is not None:
             console.print("[red]Error:[/red] --profile is only valid for claude-desktop")
             raise typer.Exit(1)
-        _remove_all()
+        try:
+            _remove_all()
+        except ConfigParseError as exc:
+            console.print(
+                f"[red]Error:[/red] Cannot parse {exc.path}; fix or remove it before removing MCP."
+            )
+            raise typer.Exit(1) from exc
         return
 
     if client not in CLIENT_REGISTRY:
@@ -1944,7 +1962,13 @@ def setup_remove(
         console.print("[red]Error:[/red] Invalid scope. Choose 'user' or 'project'.")
         raise typer.Exit(1)
 
-    _remove_single(client, profile=profile, scope=scope or "project")
+    try:
+        _remove_single(client, profile=profile, scope=scope or "project")
+    except ConfigParseError as exc:
+        console.print(
+            f"[red]Error:[/red] Cannot parse {exc.path}; fix or remove it before removing MCP."
+        )
+        raise typer.Exit(1) from exc
 
 
 def _remove_single(client: str, profile: str | None = None, scope: str = "project") -> bool:
@@ -2221,8 +2245,11 @@ def setup_list() -> None:
                 if path is None:
                     continue
                 profile_status = "[dim]-[/dim]"
-                if _is_configured(_read_json_config(path)):
-                    profile_status = "[green]✓[/green]"
+                try:
+                    if _is_configured(_read_json_config(path)):
+                        profile_status = "[green]✓[/green]"
+                except (OSError, ConfigParseError):
+                    profile_status = "[dim]?[/dim]"
                 display_path = str(path).replace(str(Path.home()), "~")
                 table.add_row(
                     f"{info['name']} ({profile_labels[profile_name]})",
@@ -2234,9 +2261,12 @@ def setup_list() -> None:
 
         elif client_id == "gemini":
             path = _gemini_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                if _is_configured(config):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "github-copilot":
@@ -2271,47 +2301,64 @@ def setup_list() -> None:
 
         elif client_id == "cursor":
             path = _cursor_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                if _is_configured(config):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "windsurf":
             path = _windsurf_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                if _is_configured(config):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "cline":
             path = _cline_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                if _is_configured(config):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "antigravity":
             path = _antigravity_config_path()
-            config = _read_json_config(path)
-            if _is_configured(config):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                if _is_configured(config):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "codex":
             path = _codex_config_path() / "config.toml"
             try:
-                if _is_already_configured("codex"):
-                    status = "[green]✓[/green]"
+                if path.exists():
+                    config = tomllib.loads(path.read_text(encoding="utf-8"))
+                    if _configured_mcp_names(config.get("mcp_servers", {})):
+                        status = "[green]✓[/green]"
             except (OSError, tomllib.TOMLDecodeError):
                 status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         elif client_id == "opencode":
             path = _opencode_config_path()
-            config = _read_json_config(path)
-            mcp = config.get("mcp", {})
-            if _configured_mcp_names(mcp):
-                status = "[green]✓[/green]"
+            try:
+                config = _read_json_config(path)
+                mcp = config.get("mcp", {})
+                if _configured_mcp_names(mcp):
+                    status = "[green]✓[/green]"
+            except (OSError, ConfigParseError):
+                status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 
         table.add_row(str(info["name"]), str(info["description"]), status, config_path)

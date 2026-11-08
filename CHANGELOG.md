@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.2] - 2026-11-08
+
+### Fixed
+
+- Treat empty and whitespace-only MCP client config files as empty objects, so setup can initialize them. Malformed JSON and TOML configs remain untouched. `nlm setup list` now marks an unreadable client config with `?` and continues listing the remaining clients. `nlm setup add` and `nlm setup remove` report the affected path with repair instructions instead of ending in a traceback ([#399](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/399), [#400](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/400)).
+- Send the current 9-slot consumer `GenerateFreeFormStreamed` request from the web client for notebook chat, while preserving the Enterprise 3-slot request. Live checks covered fresh conversations, follow-ups, selected sources, and citations across three notebooks; failure handling matched the previous release. Existing five-slot requests also continued to work during verification, so this is a compatibility update rather than a confirmed resolution of a reported production failure ([#398](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/398)).
+
+### Credits
+
+Thanks to **@pengqun** for the setup error-handling fix in [#400](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/400) and the detailed report in [#399](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/399), and to **@saariuslystoned** for the chat request compatibility update in [#398](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/398).
+
 ## [0.16.1] - 2026-11-06
 
 ### Fixed

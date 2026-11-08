@@ -37,7 +37,7 @@ def capture_backups() -> Iterator[list[Path]]:
 
 
 def read_json_config(path: Path) -> dict:
-    """Read a JSON config file, returning empty dict if missing.
+    """Read a JSON config file, returning empty dict if missing or blank.
 
     Raises:
         ConfigParseError: If file exists but is malformed or not a JSON object.
@@ -45,7 +45,10 @@ def read_json_config(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+        if not raw.strip():
+            return {}
+        value = json.loads(raw)
     except (OSError, json.JSONDecodeError) as exc:
         raise ConfigParseError(path, exc) from exc
     if not isinstance(value, dict):

@@ -2346,7 +2346,7 @@ def setup_list() -> None:
                     config = tomllib.loads(path.read_text(encoding="utf-8"))
                     if _configured_mcp_names(config.get("mcp_servers", {})):
                         status = "[green]✓[/green]"
-            except (OSError, tomllib.TOMLDecodeError):
+            except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
                 status = "[dim]?[/dim]"
             config_path = str(path).replace(str(Path.home()), "~")
 

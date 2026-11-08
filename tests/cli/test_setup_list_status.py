@@ -161,19 +161,20 @@ def test_setup_list_isolates_config_errors(tmp_path, monkeypatch, client, path_g
 
 @pytest.mark.parametrize(
     ("content", "expected"),
-    [("[mcp_servers", "?"), ("", "-"), ('model = "example"\n', "-")],
-    ids=["malformed", "empty", "unconfigured"],
+    [(b"[mcp_servers", "?"), (b"\xff", "?"), (b"", "-"), (b'model = "example"\n', "-")],
+    ids=["malformed", "invalid-utf8", "empty", "unconfigured"],
 )
 def test_setup_list_codex_toml_status(tmp_path, monkeypatch, content, expected):
     console = Console(record=True, width=180)
     monkeypatch.setattr(setup, "console", console)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(setup, "_codex_config_path", lambda: tmp_path)
     monkeypatch.setattr(setup, "CLIENT_REGISTRY", {"codex": setup.CLIENT_REGISTRY["codex"]})
-    (tmp_path / "config.toml").write_text(content, encoding="utf-8")
+    (tmp_path / "config.toml").write_bytes(content)
 
     setup.setup_list()
 
     output = console.export_text()
     row = next(line for line in output.splitlines() if "config.toml" in line)
-    assert expected in row
+    assert row.split("│")[3].strip() == expected
     assert "✓" not in row

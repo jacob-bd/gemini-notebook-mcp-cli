@@ -197,3 +197,53 @@ def test_netscape_value_with_tabs():
         assert result == {"TAB_COOKIE": "value\twith\ttabs"}
     finally:
         Path(path).unlink(missing_ok=True)
+
+
+# --- Chrome "Copy as cURL" exports (issue #403) ---
+
+
+def _parse_cookie_text(text: str) -> dict[str, str]:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        f.write(text)
+        path = f.name
+    try:
+        return parse_cookies_from_file(path)
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+def test_parse_curl_inline_cookie_flag():
+    """Multiline Chrome export using -b 'name=value; ...' parses cleanly."""
+    content = (
+        "curl 'https://notebook.google.com/' \\\n"
+        "  -b 'SID=fake-sid; HSID=fake-hsid' \\\n"
+        "  -H 'accept: text/html'"
+    )
+    result = _parse_cookie_text(content)
+    assert result == {"SID": "fake-sid", "HSID": "fake-hsid"}
+
+
+def test_parse_curl_long_inline_cookie_flag():
+    """The long --cookie form parses the same as -b."""
+    content = "curl 'https://notebook.google.com/' --cookie 'SID=abc; HSID=def'"
+    assert _parse_cookie_text(content) == {"SID": "abc", "HSID": "def"}
+
+
+def test_parse_curl_cookie_flag_equals_form():
+    """--cookie=value is a valid cURL form."""
+    content = "curl 'https://notebook.google.com/' --cookie='SID=abc; HSID=def'"
+    assert _parse_cookie_text(content) == {"SID": "abc", "HSID": "def"}
+
+
+def test_parse_curl_cookie_file_reference_rejected():
+    """-b pointing at a file must fail with an actionable error."""
+    content = "curl 'https://notebook.google.com/' -b cookies.txt"
+    with pytest.raises(AuthenticationError, match="cURL input"):
+        _parse_cookie_text(content)
+
+
+def test_malformed_cookie_name_rejected():
+    """Unrecognized text must not become a garbage cookie key."""
+    content = "some pasted text -H 'accept: text/html'"
+    with pytest.raises(AuthenticationError, match="Could not parse cookies"):
+        _parse_cookie_text(content)

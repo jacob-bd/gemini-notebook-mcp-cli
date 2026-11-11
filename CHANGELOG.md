@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.3] - 2026-11-11
+
 ### Fixed
 
-- Parse cookies from DevTools "Copy as cURL" exports that carry them in `-b`/`--cookie`, instead of treating the whole command as one cookie string. Unrecognized input now fails with an actionable error instead of producing broken cookie names ([#403](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/403)).
+- Manual login reads cookies from DevTools "Copy as cURL" exports that pass them with `-b`/`--cookie`, including multiline inputs. Previously the whole command became one cookie string, so login failed later with a protocol error. Unrecognized input now fails with a message naming the accepted formats ([#403](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/403), [#404](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/404)).
+
+### Credits
+
+Thanks to **@elijahmuraoka** for the precise reproduction and workaround in [#403](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/403).
+
 
 ## [0.16.2] - 2026-11-08
 

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `nlm login` no longer crashes with a bare `AssertionError` at the plain-or-protected storage question on Typer 0.29 and newer. On Typer 0.26 to 0.28 an answer other than 1 or 2 now asks again instead of aborting. The prompt no longer depends on Click, which Typer stopped shipping in 0.26 ([#ISSUE](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/ISSUE)).
+- `nlm login` no longer crashes with a bare `AssertionError` at the plain-or-protected storage question on Typer 0.29 and newer. On Typer 0.26 to 0.28 an answer other than 1 or 2 now asks again instead of aborting ([#ISSUE](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/ISSUE)).
 
 ## [0.16.3] - 2026-11-11
 

@@ -240,7 +240,7 @@ _T = TypeVar("_T")
 
 
 def _choose_1_or_2() -> int:
-    # ponytail: own range check, Typer >= 0.26 no longer accepts click.IntRange
+    # Range checked here: Typer >= 0.26 no longer ships Click, so click.IntRange is gone.
     while True:
         answer = typer.prompt("Choose 1 or 2", type=int, default=1)
         if answer in (1, 2):

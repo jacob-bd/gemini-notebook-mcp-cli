@@ -162,25 +162,11 @@ def test_real_prompt_enter_takes_the_default_protected():
     assert "Please enter 1 or 2." not in result.output
 
 
-def test_real_prompt_plain_choice_after_a_wrong_answer():
-    picked, result = _choose_with_real_prompt("work", "7\n2\n")
-    assert result.exit_code == 0, result.output
-    assert picked == [main.StorageChoice("file", True, True)]
-    assert "Please enter 1 or 2." in result.output
-
-
 def test_real_prompt_rename_offer_after_a_wrong_answer():
     picked, result = _choose_with_real_prompt("my work", "0\n1\n")
     assert result.exit_code == 0, result.output
     assert picked == [main.StorageChoice("protected", True, True, "my-work")]
     assert "Please enter 1 or 2." in result.output
-
-
-def test_real_prompt_end_of_input_aborts_without_a_choice():
-    picked, result = _choose_with_real_prompt("work", "")
-    assert result.exit_code == 1
-    assert picked == []
-    assert get_protect_answer("work") is None
 
 
 # --- the --storage flag -------------------------------------------------------

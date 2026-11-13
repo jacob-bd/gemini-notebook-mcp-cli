@@ -131,6 +131,44 @@ def test_picked_protected_but_keystore_locked_falls_back_unrecorded(monkeypatch,
     assert "keystore isn't available" in capsys.readouterr().out
 
 
+# --- the real prompt (no typer.prompt stub) -----------------------------------
+
+
+def _choose_with_real_prompt(profile, keyboard):
+    """Run the storage question with `keyboard` typed on stdin; return (choices made, CLI result)."""
+    picked = []
+    app = typer.Typer()
+
+    @app.command()
+    def ask():
+        picked.append(main._choose_storage_mode(profile, None))
+
+    result = CliRunner().invoke(app, [], input=keyboard)
+    return picked, result
+
+
+def test_real_prompt_asks_again_until_1_or_2():
+    picked, result = _choose_with_real_prompt("work", "5\nx\n2\n")
+    assert result.exit_code == 0, result.output
+    assert picked == [main.StorageChoice("file", True, True)]
+    assert result.output.count("Please enter 1 or 2.") == 1  # for 5; x is Typer's own error
+    assert result.output.count("Choose 1 or 2") == 3
+
+
+def test_real_prompt_enter_takes_the_default_protected():
+    picked, result = _choose_with_real_prompt("work", "\n")
+    assert result.exit_code == 0, result.output
+    assert picked == [main.StorageChoice("protected", True, True)]
+    assert "Please enter 1 or 2." not in result.output
+
+
+def test_real_prompt_rename_offer_after_a_wrong_answer():
+    picked, result = _choose_with_real_prompt("my work", "0\n1\n")
+    assert result.exit_code == 0, result.output
+    assert picked == [main.StorageChoice("protected", True, True, "my-work")]
+    assert "Please enter 1 or 2." in result.output
+
+
 # --- the --storage flag -------------------------------------------------------
 
 

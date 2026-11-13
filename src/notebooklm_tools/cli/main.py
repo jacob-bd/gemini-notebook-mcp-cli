@@ -239,10 +239,17 @@ class StorageChoice(NamedTuple):
 _T = TypeVar("_T")
 
 
+def _choose_1_or_2() -> int:
+    # Range checked here: Typer >= 0.26 no longer ships Click, so click.IntRange is gone.
+    while True:
+        answer = typer.prompt("Choose 1 or 2", type=int, default=1)
+        if answer in (1, 2):
+            return answer
+        console.print("Please enter 1 or 2.")
+
+
 def _choose_storage_mode(profile: str, storage_flag: str | None) -> StorageChoice:
     """Decide plain vs protected BEFORE the browser opens. Writes nothing to disk."""
-    import click
-
     from notebooklm_tools.services import auth_storage as st
     from notebooklm_tools.services.auth import AuthManager
     from notebooklm_tools.utils.config import get_auth_storage_mode
@@ -312,7 +319,7 @@ def _choose_storage_mode(profile: str, storage_flag: str | None) -> StorageChoic
             f"  1) Use '{suggestion}' instead and protect the login [green](recommended)[/green]"
         )
         console.print(f"  2) Keep '{profile}' as a plain file")
-        answer = typer.prompt("Choose 1 or 2", type=click.IntRange(1, 2), default=1)
+        answer = _choose_1_or_2()
         if answer == 2:
             return StorageChoice("file", True, True)
         if not st.keystore_available():
@@ -329,7 +336,7 @@ def _choose_storage_mode(profile: str, storage_flag: str | None) -> StorageChoic
         "  1) Protected - encrypted, key kept in your OS keystore [green](recommended)[/green]"
     )
     console.print("  2) Plain file - simple, readable by anything on this computer")
-    answer = typer.prompt("Choose 1 or 2", type=click.IntRange(1, 2), default=1)
+    answer = _choose_1_or_2()
     if answer == 1 and not st.keystore_available():
         console.print(
             "Your OS keystore isn't available right now, so this login will be saved as a "

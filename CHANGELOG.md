@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Credits
 
-Thanks to **@renepf** for the fix in [#407](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/407).
+Thanks to **@renepf** for the login prompt fix and regression tests in [#407](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/407), and to **@Zir0-93** for the layering audit behind [#405](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/405).
 
 ## [0.16.3] - 2026-11-11
 

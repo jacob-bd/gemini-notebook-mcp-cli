@@ -5,10 +5,10 @@ from rich.table import Table
 
 from notebooklm_tools.cli.formatters import print_json
 from notebooklm_tools.cli.utils import get_client, handle_error, make_console
-from notebooklm_tools.core.alias import get_alias_manager
-from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.services import ServiceError
 from notebooklm_tools.services import labels as labels_service
+from notebooklm_tools.services.aliases import get_alias_manager
+from notebooklm_tools.services.errors import NLMError
 
 console = make_console()
 app = typer.Typer(

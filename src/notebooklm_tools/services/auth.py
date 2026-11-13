@@ -50,6 +50,7 @@ __all__ = [
     "credentials_are_usable",
     "diagnose_auth_replay",
     "ensure_profile_ready",
+    "extract_cookies_from_chrome_export",
     "get_active_auth_mtime",
     "get_auth_health_checker",
     "get_cache_path",
@@ -200,6 +201,13 @@ def get_active_auth_state(profile: str | None = None) -> Any:
 # monkeypatches `core.auth.<Class>` afterward. Resolving on every access
 # keeps tests working at the cost of one extra attribute lookup.
 _LAZY_CLASS_NAMES = frozenset({"AuthTokens", "AuthManager"})
+
+
+def extract_cookies_from_chrome_export(cookie_data: str | list[dict]) -> dict[str, str]:
+    """Parse a Chrome cookie export. Thin re-export of `core.utils`."""
+    from notebooklm_tools.core.utils import extract_cookies_from_chrome_export as _extract
+
+    return _extract(cookie_data)
 
 
 def __getattr__(name):

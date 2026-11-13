@@ -15,10 +15,10 @@ from rich.progress import (
 )
 
 from notebooklm_tools.cli.utils import get_client, handle_error, make_console
-from notebooklm_tools.core.alias import get_alias_manager
-from notebooklm_tools.core.errors import ArtifactNotReadyError
 from notebooklm_tools.services import ServiceError
 from notebooklm_tools.services import downloads as downloads_service
+from notebooklm_tools.services.aliases import get_alias_manager
+from notebooklm_tools.services.errors import ArtifactNotReadyError
 
 app = typer.Typer(help="Download artifacts from notebooks.")
 console = make_console()

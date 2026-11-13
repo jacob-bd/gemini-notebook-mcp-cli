@@ -10,8 +10,8 @@ import typer
 from rich.console import Console
 
 from notebooklm_tools import __version__
-from notebooklm_tools.core.client import NotebookLMClient
 from notebooklm_tools.services.auth import AuthManager
+from notebooklm_tools.services.client import NotebookLMClient
 from notebooklm_tools.utils.config import get_config, get_storage_dir
 from notebooklm_tools.utils.versioning import is_newer_version
 
@@ -86,8 +86,7 @@ def get_client(profile: str | None = None) -> NotebookLMClient:
 def handle_error(e: Exception, json_output: bool = False) -> None:
     """Standard error handler for CLI commands."""
     from notebooklm_tools.cli.formatters import print_json
-    from notebooklm_tools.core.exceptions import NLMError
-    from notebooklm_tools.services.errors import ServiceError
+    from notebooklm_tools.services.errors import NLMError, ServiceError
 
     if isinstance(e, typer.Exit):
         raise e
@@ -261,7 +260,7 @@ def print_storage_mode_notification() -> None:
     (d) file-mode check: default profile must be configured and in file mode
     (e) real probe at most once per install (30-day cache in notices.json)
     """
-    from notebooklm_tools.core.notices import (
+    from notebooklm_tools.services.notices import (
         get_protect_answer,
         is_cli_notice_shown,
         mark_cli_notice_shown,
@@ -275,8 +274,8 @@ def print_storage_mode_notification() -> None:
     if not sys.stderr.isatty():
         return
 
-    from notebooklm_tools.core.credential_store import CredentialStore
     from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.services.auth_storage import CredentialStore
     from notebooklm_tools.utils.config import get_auth_storage_mode, get_config
 
     try:

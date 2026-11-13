@@ -115,7 +115,7 @@ def _auth_failure_from_result(result: Any) -> Exception:
     Returns:
         An AuthenticationError whose message/hint match the failure reason.
     """
-    from notebooklm_tools.core.exceptions import AuthenticationError
+    from notebooklm_tools.services.errors import AuthenticationError
 
     reason = result.reason or "unknown"
     if reason == "no_tokens":
@@ -182,8 +182,8 @@ def _validate_saved_profile(auth: Any) -> tuple[Any, int | None]:
     Raises:
         AuthenticationError: If the credentials are not usable.
     """
-    from notebooklm_tools.core.exceptions import AuthenticationError
     from notebooklm_tools.services.auth import credentials_are_usable
+    from notebooklm_tools.services.errors import AuthenticationError
 
     p = auth.load_profile()
     usable, status, detail = credentials_are_usable(force=True, profile=p.name)
@@ -385,14 +385,14 @@ def _maybe_prompt_protect_mode(profile: str) -> None:
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         return
 
-    from notebooklm_tools.core.credential_store import CredentialStore
-    from notebooklm_tools.core.notices import (
-        get_protect_answer,
-        record_protect_answer,
-    )
     from notebooklm_tools.services.auth_storage import (
+        CredentialStore,
         find_plain_backup_files,
         set_storage_mode,
+    )
+    from notebooklm_tools.services.notices import (
+        get_protect_answer,
+        record_protect_answer,
     )
 
     if get_protect_answer(profile) is not None:
@@ -502,9 +502,12 @@ def login_callback(
 
     To switch active accounts, run `nlm login switch <profile>`.
     """
-    from notebooklm_tools.core.errors import ClientAuthenticationError
-    from notebooklm_tools.core.exceptions import AccountMismatchError, NLMError
     from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.services.errors import (
+        AccountMismatchError,
+        ClientAuthenticationError,
+        NLMError,
+    )
     from notebooklm_tools.utils.auth_browser import extract_cookies_via_browser, select_auth_backend
     from notebooklm_tools.utils.config import get_config
 
@@ -573,7 +576,7 @@ def login_callback(
     from notebooklm_tools.utils.config import get_auth_storage_mode
 
     if get_auth_storage_mode(profile) == "protected":
-        from notebooklm_tools.core.credential_store import CredentialStore
+        from notebooklm_tools.services.auth_storage import CredentialStore
 
         store = CredentialStore()
         if not store.is_available():
@@ -1007,9 +1010,8 @@ def profile_rename(
     new_name: str = typer.Argument(..., help="New profile name"),
 ) -> None:
     """Rename an authentication profile."""
-    from notebooklm_tools.core.exceptions import NLMError
     from notebooklm_tools.services.auth_storage import rename_profile
-    from notebooklm_tools.services.errors import ServiceError
+    from notebooklm_tools.services.errors import NLMError, ServiceError
 
     try:
         result = rename_profile(old_name, new_name)
@@ -1568,9 +1570,9 @@ def cli_main() -> None:
             raise
     except Exception as e:
         # Import here to avoid circular dependencies
-        from notebooklm_tools.core.errors import ClientAuthenticationError
-        from notebooklm_tools.core.exceptions import (
+        from notebooklm_tools.services.errors import (
             AuthenticationError,
+            ClientAuthenticationError,
             NLMError,
         )
         from notebooklm_tools.utils.config import ConfigError

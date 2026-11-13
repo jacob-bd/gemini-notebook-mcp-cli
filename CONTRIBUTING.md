@@ -47,6 +47,7 @@ cli/  and  mcp/     →  services/  →  core/
 - `cli/` and `mcp/` are thin wrappers. They handle UX concerns (prompts, spinners, JSON responses) and delegate everything to `services/`
 - `services/` contains all business logic, validation, and error handling. Returns typed dicts.
 - `cli/` and `mcp/` must **never** import from `core/` directly. Always go through `services/`
+- Shared primitives (error types, aliases, credential storage, notices, cookie parsing) are re-exported through `services/` with lazy lookups, following `services/auth.py`. `tests/test_layering.py` enforces the boundary.
 - `services/` raises `ServiceError` / `ValidationError`. Never raw exceptions.
 
 See [CLAUDE.md](./CLAUDE.md) for the full module map and storage structure.

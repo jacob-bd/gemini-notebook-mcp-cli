@@ -870,3 +870,19 @@ def discard_unsaved_profile(profile_name: str) -> None:
         marker.unlink()
     with contextlib.suppress(OSError):
         pdir.rmdir()  # only succeeds when empty
+
+
+# ---------------------------------------------------------------------------
+# Re-exports from `core.credential_store` for `cli/` and `mcp/` (layering shim).
+# ---------------------------------------------------------------------------
+
+_CREDENTIAL_SYMBOLS = frozenset({"CredentialStore", "get_backend_factory", "get_envelope_revision"})
+
+
+def __getattr__(name: str):
+    """PEP 562 lazy re-export of credential store symbols from `core`."""
+    if name in _CREDENTIAL_SYMBOLS:
+        from notebooklm_tools.core import credential_store as _core_credential_store
+
+        return getattr(_core_credential_store, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

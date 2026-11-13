@@ -147,6 +147,7 @@ src/notebooklm_tools/
 - `cli/` and `mcp/` are thin wrappers: they handle UX concerns (prompts, spinners, JSON responses) and delegate to `services/`
 - `services/` contains all business logic, validation, and error handling. Returns typed dicts.
 - `cli/` and `mcp/` must NOT import from `core/` directly — always go through `services/`
+- Shared primitives (error types, aliases, credential storage, notices, cookie parsing) are re-exported through `services/` with lazy PEP 562 lookups, following `services/auth.py`. `tests/test_layering.py` enforces the boundary.
 - `services/` raises `ServiceError`/`ValidationError` — never raw exceptions
 
 **Storage Structure (`~/.notebooklm-mcp-cli/`):**

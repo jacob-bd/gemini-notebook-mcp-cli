@@ -205,7 +205,7 @@ def _check_authentication(verbose: bool) -> bool:
         storage_status = get_storage_status(default_profile)
         console.print(f"  Storage mode: [cyan]{storage_status['mode']}[/cyan]")
 
-        from notebooklm_tools.core.credential_store import CredentialStore
+        from notebooklm_tools.services.auth_storage import CredentialStore
 
         store = CredentialStore()
         if storage_status["mode"] == "protected":

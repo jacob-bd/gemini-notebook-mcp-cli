@@ -31,6 +31,7 @@ def test_shim_reexports_expected_auth_symbols():
             "credentials_are_usable",
             "diagnose_auth_replay",
             "ensure_profile_ready",
+            "extract_cookies_from_chrome_export",
             "get_active_auth_mtime",
             "get_auth_health_checker",
             "get_cache_path",

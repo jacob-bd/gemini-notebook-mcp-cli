@@ -76,3 +76,44 @@ class ExportError(ServiceError):
     """Raised when an export operation fails."""
 
     pass
+
+
+# ---------------------------------------------------------------------------
+# Re-exports from `core` so `cli/` and `mcp/` reach the low-level layer through
+# `services/` (see the layering rules in AGENTS.md). Resolved lazily, like
+# `services.auth`, so monkeypatching a `core.*` symbol still affects callers.
+# ---------------------------------------------------------------------------
+
+_CORE_ERROR_SOURCES = {
+    "NLMError": "exceptions",
+    "AuthenticationError": "exceptions",
+    "AccountMismatchError": "exceptions",
+    "ClientAuthenticationError": "errors",
+    "ArtifactNotReadyError": "errors",
+    "CredentialStoreError": "credential_store",
+}
+
+__all__ = [
+    "AccountMismatchError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "ArtifactNotReadyError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "AuthenticationError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "ClientAuthenticationError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "ConflictError",
+    "CreationError",
+    "CredentialStoreError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "ExportError",
+    "NLMError",  # noqa: F822 - provided lazily via PEP 562 __getattr__
+    "NotFoundError",
+    "ServiceError",
+    "ValidationError",
+]
+
+
+def __getattr__(name: str):
+    """PEP 562 lazy re-export of error types from `core`."""
+    source = _CORE_ERROR_SOURCES.get(name)
+    if source is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+
+    return getattr(import_module(f"notebooklm_tools.core.{source}"), name)

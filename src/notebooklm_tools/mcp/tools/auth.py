@@ -5,8 +5,7 @@ import time
 import urllib.parse
 from http.cookies import SimpleCookie
 
-from notebooklm_tools.core.credential_store import CredentialStoreError
-from notebooklm_tools.core.exceptions import AuthenticationError
+from notebooklm_tools.services.errors import AuthenticationError, CredentialStoreError
 
 from ._utils import (
     ESSENTIAL_COOKIES,

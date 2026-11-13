@@ -1,4 +1,8 @@
-"""Alias CRUD for notebook/source IDs, shared by MCP (the CLI keeps using core.alias)."""
+"""Alias CRUD for notebook/source IDs, shared by the CLI and MCP.
+
+Also re-exports the alias manager and ID detection from ``core.alias`` so the
+wrapper layers never import ``core/`` directly (see the layering rules).
+"""
 
 from __future__ import annotations
 
@@ -63,3 +67,22 @@ def delete_alias(name: str) -> dict[str, Any]:
 
 def resolve(id_or_alias: str) -> str:
     return _mgr().resolve(id_or_alias)
+
+
+# ---------------------------------------------------------------------------
+# Re-exports from `core.alias` for `cli/` (layering shim).
+# ---------------------------------------------------------------------------
+
+
+def get_alias_manager():
+    """Return the shared alias manager. Thin re-export of `core.alias`."""
+    from notebooklm_tools.core.alias import get_alias_manager as _get_alias_manager
+
+    return _get_alias_manager()
+
+
+def detect_id_type(value: str, profile: str | None = None) -> str:
+    """Detect whether an ID is a notebook, source, or unknown. Thin re-export."""
+    from notebooklm_tools.core.alias import detect_id_type as _detect_id_type
+
+    return _detect_id_type(value, profile)

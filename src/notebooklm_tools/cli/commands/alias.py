@@ -4,7 +4,7 @@ import typer
 from rich.table import Table
 
 from notebooklm_tools.cli.utils import make_console
-from notebooklm_tools.core.alias import detect_id_type, get_alias_manager
+from notebooklm_tools.services.aliases import detect_id_type, get_alias_manager
 
 console = make_console()
 app = typer.Typer(

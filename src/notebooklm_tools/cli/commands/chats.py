@@ -6,8 +6,8 @@ from rich.table import Table
 
 from notebooklm_tools.cli.formatters import print_json
 from notebooklm_tools.cli.utils import handle_error
-from notebooklm_tools.core.exceptions import NLMError
 from notebooklm_tools.services import ServiceError, chats
+from notebooklm_tools.services.errors import NLMError
 
 console = Console()
 chats_app = typer.Typer(

@@ -407,13 +407,12 @@ def _check_wizard_protect_prompt() -> None:
     if not is_interactive():
         return
 
-    from notebooklm_tools.core.credential_store import CredentialStore
-    from notebooklm_tools.core.notices import (
+    from notebooklm_tools.services.auth import AuthManager
+    from notebooklm_tools.services.auth_storage import CredentialStore, set_storage_mode
+    from notebooklm_tools.services.notices import (
         get_protect_answer,
         record_protect_answer,
     )
-    from notebooklm_tools.services.auth import AuthManager
-    from notebooklm_tools.services.auth_storage import set_storage_mode
     from notebooklm_tools.utils.config import get_config
 
     try:

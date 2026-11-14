@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.5] - 2026-11-14
+
 ### Fixed
 
 - `nlm login --file` now prefers the `.google.com` value when a cookie name appears on several Google domains in a Netscape or JSON export, instead of keeping the last entry (often `.youtube.com`). This matches the domain preference already used for browser-exported cookies ([#408](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/408), [#409](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/409)).
+
+### Credits
+
+Thanks to **@goranai** for the precise reproduction and the fix with regression tests in [#409](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/409).
 
 ## [0.16.4] - 2026-11-13
 

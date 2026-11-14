@@ -247,3 +247,29 @@ def test_malformed_cookie_name_rejected():
     content = "some pasted text -H 'accept: text/html'"
     with pytest.raises(AuthenticationError, match="Could not parse cookies"):
         _parse_cookie_text(content)
+
+
+def test_netscape_duplicate_name_prefers_google_domain(tmp_path):
+    """The .google.com value wins over another Google-owned domain, as in flatten_cookies."""
+    f = tmp_path / "cookies.txt"
+    f.write_text(
+        "# Netscape HTTP Cookie File\n"
+        ".google.com\tTRUE\t/\tTRUE\t0\tSID\tgoogle-val\n"
+        ".youtube.com\tTRUE\t/\tTRUE\t0\tSID\tyoutube-val\n",
+        encoding="utf-8",
+    )
+    assert parse_cookies_from_file(f) == {"SID": "google-val"}
+
+
+def test_json_list_duplicate_name_prefers_google_domain(tmp_path):
+    f = tmp_path / "cookies.json"
+    f.write_text(
+        json.dumps(
+            [
+                {"name": "SID", "value": "google-val", "domain": ".google.com"},
+                {"name": "SID", "value": "youtube-val", "domain": ".youtube.com"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    assert parse_cookies_from_file(f) == {"SID": "google-val"}

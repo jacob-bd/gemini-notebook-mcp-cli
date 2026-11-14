@@ -51,10 +51,12 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
             return {str(k): str(v) for k, v in data.items()}
         if isinstance(data, list):
             # List of cookie objects
-            cookies = {}
-            for item in data:
-                if isinstance(item, dict) and "name" in item and "value" in item:
-                    cookies[item["name"]] = item["value"]
+            rows = [
+                item
+                for item in data
+                if isinstance(item, dict) and "name" in item and "value" in item
+            ]
+            cookies = flatten_cookies(rows)
             if cookies:
                 return cookies
     except json.JSONDecodeError:
@@ -154,8 +156,7 @@ def _try_parse_netscape_cookies(content: str) -> dict[str, str] | None:
     an HttpOnly cookie. Returns None if the content doesn't appear to be
     Netscape format.
     """
-    cookies: dict[str, str] = {}
-    valid_lines = 0
+    rows: list[dict[str, Any]] = []
 
     for line in content.splitlines():
         # Keep trailing tabs so empty value cookies are not truncated by line.strip()
@@ -177,10 +178,9 @@ def _try_parse_netscape_cookies(content: str) -> dict[str, str] | None:
             # Join remaining parts in case the value itself contains tabs
             value = "\t".join(parts[6:]).strip()
             if name:
-                cookies[name] = value
-                valid_lines += 1
+                rows.append({"name": name, "value": value, "domain": parts[0].strip()})
 
-    return cookies if valid_lines > 0 else None
+    return flatten_cookies(rows) if rows else None
 
 
 def flatten_cookies(cookies: dict[str, str] | list[dict[str, Any]]) -> dict[str, str]:

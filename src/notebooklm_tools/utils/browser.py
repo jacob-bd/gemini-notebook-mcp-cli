@@ -25,6 +25,10 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
     - Netscape/Mozilla cookie file format (tab-separated, as exported by
       browser extensions like "Get cookies.txt LOCALLY")
 
+    For the JSON list and Netscape formats, a cookie name exported for more
+    than one domain resolves to the exact ``.google.com`` value when present,
+    matching :func:`flatten_cookies`.
+
     Args:
         file_path: Path to the file containing cookies.
 
@@ -153,8 +157,9 @@ def _try_parse_netscape_cookies(content: str) -> dict[str, str] | None:
         domain  flag  path  secure  expires  name  value
 
     Lines starting with '#' are comments, except '#HttpOnly_' which marks
-    an HttpOnly cookie. Returns None if the content doesn't appear to be
-    Netscape format.
+    an HttpOnly cookie. Duplicate names are resolved by
+    :func:`flatten_cookies`, so an exact ``.google.com`` value wins. Returns
+    None if the content doesn't appear to be Netscape format.
     """
     rows: list[dict[str, Any]] = []
 

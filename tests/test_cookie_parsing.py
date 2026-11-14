@@ -273,3 +273,39 @@ def test_json_list_duplicate_name_prefers_google_domain(tmp_path):
         encoding="utf-8",
     )
     assert parse_cookies_from_file(f) == {"SID": "google-val"}
+
+
+def test_netscape_google_domain_wins_when_listed_last(tmp_path):
+    """Order, #HttpOnly_ prefixes, domain case, and CRLF do not defeat the preference."""
+    f = tmp_path / "cookies.txt"
+    f.write_text(
+        ".youtube.com\tTRUE\t/\tTRUE\t0\tSID\tyoutube-val\r\n"
+        "#HttpOnly_.GOOGLE.COM\tTRUE\t/\tTRUE\t0\tSID\tgoogle-val\r\n",
+        encoding="utf-8",
+    )
+    assert parse_cookies_from_file(f) == {"SID": "google-val"}
+
+
+def test_json_list_google_domain_wins_when_listed_last(tmp_path):
+    f = tmp_path / "cookies.json"
+    f.write_text(
+        json.dumps(
+            [
+                {"name": "SID", "value": "youtube-val", "domain": ".youtube.com"},
+                {"name": "SID", "value": "google-val", "domain": ".google.com"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    assert parse_cookies_from_file(f) == {"SID": "google-val"}
+
+
+def test_non_google_duplicate_names_keep_last_value(tmp_path):
+    """Without a .google.com value, the established last-wins rule is unchanged."""
+    f = tmp_path / "cookies.txt"
+    f.write_text(
+        ".youtube.com\tTRUE\t/\tTRUE\t0\tSID\tfirst-val\n"
+        ".google.com.vn\tTRUE\t/\tTRUE\t0\tSID\tsecond-val\n",
+        encoding="utf-8",
+    )
+    assert parse_cookies_from_file(f) == {"SID": "second-val"}

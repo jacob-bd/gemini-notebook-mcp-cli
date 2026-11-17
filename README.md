@@ -29,25 +29,35 @@
 >
 > <a href="https://buymeacoffee.com/jacobbd"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="42"></a>
 
-📺 **Watch the Demos**
+## 📺 Watch the demos
 
-### Latest
+Real workflows, start to finish. The newest videos are first, then the demo that matches how you work.
 
-| **Claude Cowork & Interactive Reports** | **Codex Setup + Cinematic Video & Slides** |
+> **New here?** Start with **[Claude in 5 minutes](https://www.youtube.com/watch?v=PU8JhgLPxes)**. It is the shortest path from install to your first notebook query.
+
+### Newest
+
+| **Claude Cowork & Interactive Reports** | **Credential security** |
 | :---: | :---: |
-| [![Claude Cowork and Interactive Reports demo](https://img.youtube.com/vi/UXxqTpNNGt0/mqdefault.jpg)](https://www.youtube.com/watch?v=UXxqTpNNGt0) | [![Codex Setup, Cinematic Video and Slides demo](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg?v=20261002)](https://www.youtube.com/watch?v=KrgLCrvU1dw) |
+| [![Claude takes over Gemini Notebook](https://img.youtube.com/vi/UXxqTpNNGt0/mqdefault.jpg)](https://www.youtube.com/watch?v=UXxqTpNNGt0)<br>**Watch Claude take over**<br><sub>The full build, start to finish<br>22 min</sub> | [![Encrypt your saved credentials](https://img.youtube.com/vi/7ZmF_lwJh3M/mqdefault.jpg)](https://www.youtube.com/watch?v=7ZmF_lwJh3M)<br>**Encrypt your saved login**<br><sub>New protected storage<br>83 sec</sub> |
 
-### MCP Demos
+### Set up and connect
 
-|                                              **General Overview**                                               |                                               **Claude Desktop**                                               |                                               **Perplexity Desktop**                                               |                                                  **MCP Super Assistant**                                                   |
-| :-------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------: |
-| [![General](https://img.youtube.com/vi/d-PZDQlO4m4/mqdefault.jpg)](https://www.youtube.com/watch?v=d-PZDQlO4m4) | [![Claude](https://img.youtube.com/vi/PU8JhgLPxes/mqdefault.jpg)](https://www.youtube.com/watch?v=PU8JhgLPxes) | [![Perplexity](https://img.youtube.com/vi/BCKlDNg-qxs/mqdefault.jpg)](https://www.youtube.com/watch?v=BCKlDNg-qxs) | [![MCP SuperAssistant](https://img.youtube.com/vi/7aHDbkr-l_E/mqdefault.jpg)](https://www.youtube.com/watch?v=7aHDbkr-l_E) |
+| **Claude Desktop** | **Setup** | **Local AI** | **Any AI client** |
+| :---: | :---: | :---: | :---: |
+| [![Connect Claude in 5 minutes](https://img.youtube.com/vi/PU8JhgLPxes/mqdefault.jpg)](https://www.youtube.com/watch?v=PU8JhgLPxes)<br>**Connect Claude in 5 minutes**<br><sub>The fastest first query<br>6 min</sub> | [![Set up the MCP server](https://img.youtube.com/vi/5tOUilBTJ3Q/mqdefault.jpg)](https://www.youtube.com/watch?v=5tOUilBTJ3Q)<br>**Set up the server**<br><sub>Wizard, doctor, and mcpb<br>16 min</sub> | [![Use LM Studio with your notebook](https://img.youtube.com/vi/OmtvmPBQzkM/mqdefault.jpg)](https://www.youtube.com/watch?v=OmtvmPBQzkM)<br>**Use LM Studio locally**<br><sub>A local model, same notebook<br>8 min</sub> | [![ChatGPT, Grok, Gemini and more](https://img.youtube.com/vi/7aHDbkr-l_E/mqdefault.jpg)](https://www.youtube.com/watch?v=7aHDbkr-l_E)<br>**ChatGPT, Grok, Gemini and more**<br><sub>One server, many front ends<br>15 min</sub> |
 
-### CLI Demos
+### Create and automate
 
-|                                                   **CLI Overview**                                                   |                                                   **CLI, MCP & Skills**                                                   |                                                   **Setup, Doctor & mcpb**                                                   |                                               **Infographics Support**                                               |
-| :------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------: |
-| [![CLI Overview](https://img.youtube.com/vi/XyXVuALWZkE/mqdefault.jpg)](https://www.youtube.com/watch?v=XyXVuALWZkE) | [![CLI, MCP & Skills](https://img.youtube.com/vi/ZQBQigFK-E8/mqdefault.jpg)](https://www.youtube.com/watch?v=ZQBQigFK-E8) | [![Setup, Doctor & mcpb](https://img.youtube.com/vi/5tOUilBTJ3Q/mqdefault.jpg)](https://www.youtube.com/watch?v=5tOUilBTJ3Q) | [![Infographics](https://img.youtube.com/vi/Uc6iH5NuQ9A/mqdefault.jpg)](https://www.youtube.com/watch?v=Uc6iH5NuQ9A) |
+| **Codex setup, cinematic video & slides** | **Studio video** | **Infographics** | **CLI** |
+| :---: | :---: | :---: | :---: |
+| [![Turn code into a cinematic video](https://img.youtube.com/vi/KrgLCrvU1dw/mqdefault.jpg?v=20261002)](https://www.youtube.com/watch?v=KrgLCrvU1dw)<br>**Turn code into a cinematic video**<br><sub>Codex and NotebookLM, end to end<br>14 min</sub> | [![See the cinematic result](https://img.youtube.com/vi/iu4L6H6gMD8/mqdefault.jpg)](https://www.youtube.com/watch?v=iu4L6H6gMD8)<br>**See the cinematic result**<br><sub>A two-minute taste of the workflow<br>2 min</sub> | [![Try all 10 infographic styles](https://img.youtube.com/vi/Uc6iH5NuQ9A/mqdefault.jpg)](https://www.youtube.com/watch?v=Uc6iH5NuQ9A)<br>**Try all 10 infographic styles**<br><sub>Every style, side by side<br>11 min</sub> | [![Automate research in your terminal](https://img.youtube.com/vi/XyXVuALWZkE/mqdefault.jpg)](https://www.youtube.com/watch?v=XyXVuALWZkE)<br>**Automate research in your terminal**<br><sub>Create, query, and download from the CLI<br>13 min</sub> |
+
+### More demos
+
+| **Perplexity** | **How it works** | **Overview** |
+| :---: | :---: | :---: |
+| [![Connect Perplexity to NotebookLM](https://img.youtube.com/vi/BCKlDNg-qxs/mqdefault.jpg)](https://www.youtube.com/watch?v=BCKlDNg-qxs)<br>**Connect Perplexity to NotebookLM**<br><sub>See what happens with MCP access<br>10 min</sub> | [![NotebookLM has no API. So I built one.](https://img.youtube.com/vi/ZQBQigFK-E8/mqdefault.jpg)](https://www.youtube.com/watch?v=ZQBQigFK-E8)<br>**NotebookLM has no API. So I built one.**<br><sub>The story behind the CLI and server<br>12 min</sub> | [![Automate research and content creation](https://img.youtube.com/vi/d-PZDQlO4m4/mqdefault.jpg)](https://www.youtube.com/watch?v=d-PZDQlO4m4)<br>**Automate research and content creation**<br><sub>The original end-to-end overview<br>16 min</sub> |
 
 ## ⚡ Quick Start
 

@@ -35,17 +35,11 @@ Real workflows, start to finish. The newest videos are first, then the demo that
 
 > **New here?** Start with **[Claude in 5 minutes](https://www.youtube.com/watch?v=PU8JhgLPxes)**. It is the shortest path from install to your first notebook query.
 
-### Newest
-
-| **Claude Cowork & Interactive Reports** | **Credential security** |
-| :---: | :---: |
-| [![Claude takes over Gemini Notebook](https://img.youtube.com/vi/UXxqTpNNGt0/mqdefault.jpg)](https://www.youtube.com/watch?v=UXxqTpNNGt0)<br>**Watch Claude take over**<br><sub>The full build, start to finish<br>22 min</sub> | [![Encrypt your saved credentials](https://img.youtube.com/vi/7ZmF_lwJh3M/mqdefault.jpg)](https://www.youtube.com/watch?v=7ZmF_lwJh3M)<br>**Encrypt your saved login**<br><sub>New protected storage<br>83 sec</sub> |
-
 ### Set up and connect
 
-| **Claude Desktop** | **Setup** | **Local AI** | **Any AI client** |
+| **Claude Cowork & Interactive Reports** | **Setup** | **Local AI** | **Any AI client** |
 | :---: | :---: | :---: | :---: |
-| [![Connect Claude in 5 minutes](https://img.youtube.com/vi/PU8JhgLPxes/mqdefault.jpg)](https://www.youtube.com/watch?v=PU8JhgLPxes)<br>**Connect Claude in 5 minutes**<br><sub>The fastest first query<br>6 min</sub> | [![Set up the MCP server](https://img.youtube.com/vi/5tOUilBTJ3Q/mqdefault.jpg)](https://www.youtube.com/watch?v=5tOUilBTJ3Q)<br>**Set up the server**<br><sub>Wizard, doctor, and mcpb<br>16 min</sub> | [![Use LM Studio with your notebook](https://img.youtube.com/vi/OmtvmPBQzkM/mqdefault.jpg)](https://www.youtube.com/watch?v=OmtvmPBQzkM)<br>**Use LM Studio locally**<br><sub>A local model, same notebook<br>8 min</sub> | [![ChatGPT, Grok, Gemini and more](https://img.youtube.com/vi/7aHDbkr-l_E/mqdefault.jpg)](https://www.youtube.com/watch?v=7aHDbkr-l_E)<br>**ChatGPT, Grok, Gemini and more**<br><sub>One server, many front ends<br>15 min</sub> |
+| [![Claude takes over Gemini Notebook](https://img.youtube.com/vi/UXxqTpNNGt0/mqdefault.jpg)](https://www.youtube.com/watch?v=UXxqTpNNGt0)<br>**Watch Claude take over**<br><sub>The full build, start to finish<br>22 min</sub> | [![Set up the MCP server](https://img.youtube.com/vi/5tOUilBTJ3Q/mqdefault.jpg)](https://www.youtube.com/watch?v=5tOUilBTJ3Q)<br>**Set up the server**<br><sub>Wizard, doctor, and mcpb<br>16 min</sub> | [![Use LM Studio with your notebook](https://img.youtube.com/vi/OmtvmPBQzkM/mqdefault.jpg)](https://www.youtube.com/watch?v=OmtvmPBQzkM)<br>**Use LM Studio locally**<br><sub>A local model, same notebook<br>8 min</sub> | [![ChatGPT, Grok, Gemini and more](https://img.youtube.com/vi/7aHDbkr-l_E/mqdefault.jpg)](https://www.youtube.com/watch?v=7aHDbkr-l_E)<br>**ChatGPT, Grok, Gemini and more**<br><sub>One server, many front ends<br>15 min</sub> |
 
 ### Create and automate
 

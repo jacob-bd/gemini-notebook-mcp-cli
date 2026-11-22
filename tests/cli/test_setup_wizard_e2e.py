@@ -203,12 +203,10 @@ def test_esc_on_post_connect_skill_question_returns_to_menu(sandbox, run):
     assert "gemini-notebook-mcp" in sandbox.codex_toml  # the connection itself stays
 
 
-def test_claude_desktop_both_profiles_prompt(sandbox, run):
+def test_claude_desktop_profiles_are_separate_rows(sandbox, run):
     sandbox.install_claude_desktop(profiles=("Claude", "Claude-3p"))
     w = run()
-    _connect(w, "Claude Desktop")
-    w.expect("Multiple Claude Desktop profiles detected")
-    w.choose("Multiple Claude Desktop profiles detected", "Both")
+    _connect(w, "Claude Desktop (subscription)", "Claude Desktop (Relay AI / 3P)")
     w.expect("Also add the skill")
     w.send("n")
     w.expect(MENU)
@@ -218,12 +216,27 @@ def test_claude_desktop_both_profiles_prompt(sandbox, run):
         assert cfg["mcpServers"]["gemini-notebook-mcp"]["command"] == SERVER_BIN
 
 
-def test_claude_desktop_running_blocks_the_write(sandbox, run):
+def test_claude_desktop_3p_row_only_writes_3p(sandbox, run):
+    sandbox.install_claude_desktop(profiles=("Claude", "Claude-3p"))
+    w = run()
+    _connect(w, "Claude Desktop (Relay AI / 3P)")
+    w.expect("Also add the skill")
+    w.send("n")
+    w.expect(MENU)
+    assert w.quit() == 0
+    cfg = sandbox.claude_desktop_config("Claude-3p")
+    assert cfg["mcpServers"]["gemini-notebook-mcp"]["command"] == SERVER_BIN
+    assert sandbox.claude_desktop_config("Claude") == {}
+
+
+def test_claude_desktop_running_offers_to_quit_and_can_be_skipped(sandbox, run):
     sandbox.install_claude_desktop()
     sandbox.extra_env["WIZ_CLAUDE_DESKTOP_RUNNING"] = "1"
     w = run()
-    _connect(w, "Claude Desktop")
-    w.expect("Claude Desktop is still running")
+    _connect(w, "Claude Desktop (subscription)")
+    w.expect("is running. Quit it completely")
+    w.choose("is running. Quit it completely", "Skip this one")
+    w.expect("Connection Results")
     w.expect("didn't complete")
     w.send("n")
     w.expect(MENU)
@@ -540,12 +553,13 @@ def test_esc_inside_copy_json_returns_to_menu(run, where):
     assert w.quit() == 0
 
 
-def test_esc_on_claude_desktop_profile_question_skips_only_that_tool(sandbox, run):
-    sandbox.install_claude_desktop(profiles=("Claude", "Claude-3p"))
+def test_esc_on_claude_desktop_quit_prompt_skips_only_that_tool(sandbox, run):
+    sandbox.install_claude_desktop()
     sandbox.install_codex()
+    sandbox.extra_env["WIZ_CLAUDE_DESKTOP_RUNNING"] = "1"
     w = run()
-    _connect(w, "Codex", "Claude Desktop")
-    w.expect("Multiple Claude Desktop profiles detected")
+    _connect(w, "Codex", "Claude Desktop (subscription)")
+    w.expect("is running. Quit it completely")
     w.settle()
     w.esc()
     w.expect("Connection Results")
@@ -557,8 +571,7 @@ def test_esc_on_claude_desktop_profile_question_skips_only_that_tool(sandbox, ru
     w.expect(MENU)
     assert w.quit() == 0
     assert "gemini-notebook-mcp" in sandbox.codex_toml  # the other tool still connected
-    assert sandbox.claude_desktop_config("Claude") == {}
-    assert sandbox.claude_desktop_config("Claude-3p") == {}
+    assert sandbox.claude_desktop_config() == {}
 
 
 # --- entries still using the old name ---------------------------------------------

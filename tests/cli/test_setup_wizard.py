@@ -795,3 +795,44 @@ def test_skill_rows_always_offer_upload_row_unticked():
     assert rows[-1].value == setup_wizard.UPLOAD_ROW_VALUE
     assert rows[-1].checked is False
     assert "Claude Desktop / claude.ai" in rows[-1].label
+
+
+def test_claude_desktop_profiles_are_separate_wizard_rows(monkeypatch, tmp_path):
+    from notebooklm_tools.cli.commands import setup, setup_wizard
+
+    regular, threep = tmp_path / "r.json", tmp_path / "t.json"
+    regular.write_text('{"mcpServers": {"gemini-notebook-mcp": {"command": "x"}}}')
+    threep.write_text("{}")
+    monkeypatch.setattr(
+        setup, "_claude_desktop_profile_paths", lambda: {"regular": regular, "3p": threep}
+    )
+    rows = {t.id: t for t in setup_wizard._claude_desktop_targets()}
+    assert rows["claude-desktop:regular"].configured is True
+    assert rows["claude-desktop:3p"].configured is False
+    assert "Relay" in rows["claude-desktop:3p"].label
+
+
+def test_add_one_mcp_3p_row_targets_only_3p_and_waits_for_quit(monkeypatch, tmp_path):
+    from notebooklm_tools.cli.commands import setup, setup_wizard
+
+    path = tmp_path / "t.json"
+    monkeypatch.setattr(setup, "_claude_desktop_profile_paths", lambda: {"3p": path})
+    monkeypatch.setattr(setup_wizard, "_wait_for_claude_desktop_to_quit", lambda *a: True)
+    calls = []
+    monkeypatch.setattr(
+        setup, "_setup_claude_desktop", lambda profile=None: calls.append(profile) or True
+    )
+    assert setup_wizard.add_one_mcp("claude-desktop:3p") is True
+    assert calls == ["3p"]
+
+
+def test_add_one_mcp_skip_when_user_declines_to_quit(monkeypatch, tmp_path):
+    import pytest
+
+    from notebooklm_tools.cli.commands import setup, setup_wizard
+
+    path = tmp_path / "t.json"
+    monkeypatch.setattr(setup, "_claude_desktop_profile_paths", lambda: {"3p": path})
+    monkeypatch.setattr(setup_wizard, "_wait_for_claude_desktop_to_quit", lambda *a: False)
+    with pytest.raises(setup_wizard._BackRequested):
+        setup_wizard.add_one_mcp("claude-desktop:3p")

@@ -120,6 +120,58 @@ def copy_to_clipboard(value: str) -> bool:
     return False
 
 
+CLAUDE_DESKTOP_PROFILE_LABELS = {
+    setup.CLAUDE_DESKTOP_PROFILE_REGULAR: "Claude Desktop (subscription)",
+    setup.CLAUDE_DESKTOP_PROFILE_3P: "Claude Desktop (Relay AI / 3P)",
+}
+
+
+def _claude_desktop_targets() -> list[SetupTarget]:
+    """One target per detected Claude Desktop profile, so the picker names each."""
+    targets: list[SetupTarget] = []
+    for profile_name, path in setup._claude_desktop_profile_paths().items():
+        try:
+            config = setup._read_json_config(path)
+            configured = setup._is_configured(config)
+            legacy = bool(setup._legacy_only_names(config.get("mcpServers", {})))
+        except (OSError, ConfigParseError):
+            configured, legacy = False, False
+        targets.append(
+            SetupTarget(
+                id=f"claude-desktop:{profile_name}",
+                label=CLAUDE_DESKTOP_PROFILE_LABELS[profile_name],
+                installed=True,
+                configured=configured,
+                destination=path,
+                skill_id=None,
+                repair_reason=setup.OLD_NAME_REASON if configured and legacy else None,
+            )
+        )
+    return targets
+
+
+def _wait_for_claude_desktop_to_quit(profile_name: str, path: Path) -> bool:
+    """Let the user quit a running Claude Desktop instead of aborting the setup.
+
+    Returns True once the profile is no longer running, False if they skip.
+    """
+    while setup._claude_desktop_profile_is_running(profile_name, path):
+        label = CLAUDE_DESKTOP_PROFILE_LABELS[profile_name]
+        choice = ask_with_back(
+            questionary.select(
+                f"{label} is running. Quit it completely (Cmd+Q), then choose:",
+                choices=[
+                    questionary.Choice("I've quit it, continue", value="retry"),
+                    questionary.Choice("Skip this one", value="skip"),
+                ],
+                style=WIZARD_STYLE,
+            )
+        )
+        if choice != "retry":
+            return False
+    return True
+
+
 def scan_mcp_targets() -> list[SetupTarget]:
     """Scan the system for supported MCP clients, combining Codex/ChatGPT and excluding Alef."""
     targets: list[SetupTarget] = []
@@ -163,6 +215,10 @@ def scan_mcp_targets() -> list[SetupTarget]:
         if client_id in ("codex", "github-copilot", "alef-agent"):
             continue
 
+        if client_id == "claude-desktop":
+            targets.extend(_claude_desktop_targets())
+            continue
+
         installed = setup._detect_tool(client_id)
         configured = setup._is_already_configured(client_id) if installed else False
 
@@ -195,7 +251,7 @@ def scan_mcp_targets() -> list[SetupTarget]:
         targets.append(
             SetupTarget(
                 id=client_id,
-                label=info["name"],
+                label="Claude Code (CLI, terminal)" if client_id == "claude-code" else info["name"],
                 installed=installed,
                 configured=configured,
                 destination=dest,
@@ -213,15 +269,14 @@ def add_one_mcp(client: str, *, repair: bool = False) -> bool:
         return setup._setup_github_copilot(scope="user")
     elif client == "codex":
         return setup._setup_codex(repair=repair)
-    elif client == "claude-desktop":
-        # Ask for the profile here so Esc can be reported as a skip, not a failure.
-        profiles = setup._select_claude_desktop_profile_paths()
-        if profiles is None:
-            raise _BackRequested
-        if not profiles:
+    elif client.startswith("claude-desktop:"):
+        profile_name = client.split(":", 1)[1]
+        paths = setup._claude_desktop_profile_paths()
+        if profile_name not in paths:
             return False
-        profile = next(iter(profiles)) if len(profiles) == 1 else setup.CLAUDE_DESKTOP_PROFILE_BOTH
-        return setup._setup_claude_desktop(profile=profile)
+        if not _wait_for_claude_desktop_to_quit(profile_name, paths[profile_name]):
+            raise _BackRequested
+        return setup._setup_claude_desktop(profile=profile_name)
     elif client == "claude-code":
         return setup._setup_claude_code()
     elif client == "gemini":

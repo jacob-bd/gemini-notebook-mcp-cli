@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.6] - 2026-11-21
+
+### Changed
+
+- The `nlm setup` wizard now lists regular Claude Desktop and Relay AI / 3P Claude Desktop as two separate rows, each with its own connected status, instead of one "Claude Desktop" row that asked which profile afterwards. The Claude Code row is now labelled "Claude Code (CLI, terminal)" so it is not mistaken for Desktop's Code tab, which does not read `~/.claude.json` under Relay.
+- When the selected Claude Desktop instance is still running, the wizard now asks you to quit it and continue (or skip that tool) instead of aborting the connection. The write only happens once that instance has quit.
+
+### Fixed
+
+- `check_firewall_rule()` in the WSL helpers now returns a real `bool`. It used to return the PowerShell output string when the rule existed. Callers only checked truthiness, so behaviour is unchanged, but the return value now matches its `-> bool` annotation, with regression tests ([#410](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/410)).
+
+### Credits
+
+Thanks to **@insane66613** for the narrowly scoped WSL return-type fix and regression tests in [#410](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/410).
+
 ## [0.16.5] - 2026-11-14
 
 ### Fixed

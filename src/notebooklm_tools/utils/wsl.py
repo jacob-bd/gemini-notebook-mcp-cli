@@ -487,7 +487,7 @@ def check_firewall_rule(port: int = DEFAULT_WSL_CDP_PORT) -> bool:
             errors="replace",
             timeout=10,
         )
-        exists = result.returncode == 0 and result.stdout.strip()
+        exists = result.returncode == 0 and bool(result.stdout.strip())
         logger.debug(f"Firewall rule check for port {port}: {exists}")
         return exists
     except Exception as e:

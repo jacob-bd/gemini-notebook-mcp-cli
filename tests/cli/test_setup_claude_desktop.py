@@ -768,3 +768,17 @@ class TestRemoveClaudeDesktop:
             result = _remove_single("claude-desktop")
 
         assert result is False
+
+
+def test_relay_session_without_3p_process_marker_counts_as_3p_running(monkeypatch):
+    from notebooklm_tools.cli.commands import setup
+
+    main_only = "  42     1 /Applications/Claude.app/Contents/MacOS/Claude\n"
+    monkeypatch.setattr(setup, "_claude_desktop_process_list", lambda: main_only)
+    monkeypatch.setattr(setup, "_claude_desktop_3p_session_active", lambda: True)
+    assert setup._claude_desktop_profile_is_running("3p") is True
+    assert setup._claude_desktop_profile_is_running("regular") is False
+
+    monkeypatch.setattr(setup, "_claude_desktop_3p_session_active", lambda: False)
+    assert setup._claude_desktop_profile_is_running("3p") is False
+    assert setup._claude_desktop_profile_is_running("regular") is True

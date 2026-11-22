@@ -382,6 +382,21 @@ def _display_results_summary(title: str, results: list[SetupResult]) -> None:
     console.print(table)
     if any_backup:
         console.print(f"\n[dim]{REASSURANCE_LINE}[/dim]")
+    _print_claude_desktop_next_steps(results)
+
+
+def _print_claude_desktop_next_steps(results: list[SetupResult]) -> None:
+    """Tell the user how to load a newly written Claude Desktop entry."""
+    changed = {"configured", "repaired"}
+    done = {r.id for r in results if r.id.startswith("claude-desktop:") and r.status in changed}
+    if not done:
+        return
+    console.print("\n[bold]Next:[/bold] fully restart Claude Desktop to load the MCP server.")
+    if "claude-desktop:3p" in done:
+        console.print(
+            "[dim]Relay AI / 3P: launch it with [cyan]relay-ai claude-app[/cyan] "
+            "(opening Claude.app directly starts the subscription profile).[/dim]"
+        )
 
 
 def build_status_rows(targets: list[SetupTarget], state_fn) -> list[dict]:

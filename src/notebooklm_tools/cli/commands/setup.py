@@ -685,7 +685,23 @@ def _claude_desktop_profile_is_running(
         return False
 
     running_3p = any("claude-3p" in line or "claude_3p" in line for line in claude_lines)
+    # Relay launches the same Claude.app binary, so its main process carries no
+    # "Claude-3p" marker. Relay marks the session by setting deploymentMode to "3p"
+    # in the 3P config for as long as it runs; only consult it for a live snapshot.
+    if not running_3p and process_list is None:
+        running_3p = _claude_desktop_3p_session_active()
     return running_3p if profile == CLAUDE_DESKTOP_PROFILE_3P else not running_3p
+
+
+def _claude_desktop_3p_session_active() -> bool:
+    """Return whether the 3P Claude Desktop config is currently in 3P deployment mode."""
+    path = _claude_desktop_candidate_paths().get(CLAUDE_DESKTOP_PROFILE_3P)
+    if path is None:
+        return False
+    try:
+        return _read_json_config(path).get("deploymentMode") == "3p"
+    except (OSError, ConfigParseError):
+        return False
 
 
 def _ensure_claude_desktop_profiles_stopped(selected: dict[str, Path]) -> bool:

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from notebooklm_tools.core.errors import ArtifactDownloadError
+from notebooklm_tools.core.errors import ArtifactDownloadError, ClientAuthenticationError
 from notebooklm_tools.services.downloads import (
     VALID_ARTIFACT_TYPES,
     VALID_OUTPUT_FORMATS,
@@ -152,6 +152,16 @@ class TestDownloadSync:
         with pytest.raises(ServiceError, match="Failed to download"):
             download_sync(mock_client, "nb-1", "report", "/tmp/out")
 
+    def test_auth_error_surfaces_login_hint(self, mock_client):
+        mock_client.download_file.side_effect = ClientAuthenticationError(
+            "Download failed: Redirected to login page."
+        )
+        with pytest.raises(ServiceError) as exc_info:
+            download_sync(mock_client, "nb-1", "file", "/tmp/out.bin")
+        assert exc_info.value.debug_code == "auth_required"
+        assert "nlm login" in exc_info.value.user_message
+        assert "nlm login" in (exc_info.value.hint or "")
+
     def test_falsy_path_raises_service_error(self, mock_client):
         mock_client.download_report.return_value = None
         with pytest.raises(ServiceError, match="returned no path"):
@@ -225,6 +235,26 @@ class TestDownloadAsync:
         mock_client.download_audio = AsyncMock(side_effect=RuntimeError("fail"))
         with pytest.raises(ServiceError, match="Failed to download"):
             await download_async(mock_client, "nb-1", "audio", "/tmp/out")
+
+    @pytest.mark.asyncio
+    async def test_auth_error_surfaces_login_hint_without_waiting(self, mock_client):
+        mock_client.download_audio = AsyncMock(
+            side_effect=ClientAuthenticationError("Download failed: Redirected to login page.")
+        )
+        with pytest.raises(ServiceError) as exc_info:
+            await download_async(
+                mock_client,
+                "nb-1",
+                "audio",
+                "/tmp/out.m4a",
+                wait=True,
+                wait_timeout=10.0,
+                poll_interval=0.01,
+            )
+        assert exc_info.value.debug_code == "auth_required"
+        assert "nlm login" in exc_info.value.user_message
+        assert "nlm login" in (exc_info.value.hint or "")
+        mock_client.download_audio.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_audio_propagation_error_has_specific_user_message(self, mock_client):

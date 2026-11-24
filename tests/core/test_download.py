@@ -9,7 +9,11 @@ import pytest
 
 from notebooklm_tools.core.base import BaseClient
 from notebooklm_tools.core.download import DownloadMixin, _create_download_temp_path
-from notebooklm_tools.core.errors import ArtifactDownloadError, ArtifactParseError
+from notebooklm_tools.core.errors import (
+    ArtifactDownloadError,
+    ArtifactParseError,
+    ClientAuthenticationError,
+)
 
 
 def test_download_temp_paths_are_unique_and_same_directory(tmp_path):
@@ -951,3 +955,136 @@ def test_interrupted_download_removes_its_temp_file(tmp_path):
 
     assert not list(tmp_path.glob(".nlm-download-*.tmp"))
     assert not output.exists()
+
+
+@pytest.mark.asyncio
+async def test_download_url_propagates_authentication_error_on_login_redirect(tmp_path):
+    """HTML login redirects must raise ClientAuthenticationError, not ArtifactDownloadError."""
+    mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+    output = tmp_path / "audio.m4a"
+    output.write_bytes(b"existing-audio")
+
+    class LoginRedirectResponse:
+        headers = {"content-type": "text/html; charset=utf-8"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        def raise_for_status(self):
+            return None
+
+        async def aiter_bytes(self, chunk_size=8192):
+            yield b"<!doctype html><html><title>Sign in - Google Accounts</title></html>"
+
+    class FakeAsyncClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url):
+            return LoginRedirectResponse()
+
+    with (
+        patch("notebooklm_tools.core.download.httpx.AsyncClient", FakeAsyncClient),
+        pytest.raises(ClientAuthenticationError, match="Redirected to login page"),
+    ):
+        await mixin._download_url("https://lh3.googleusercontent.com/audio", str(output))
+
+    assert output.read_bytes() == b"existing-audio"
+    assert not list(tmp_path.glob(".nlm-download-*.tmp"))
+
+
+def test_download_url_sync_rejects_login_redirect_without_overwriting(tmp_path):
+    """Sync downloads must detect HTML login redirects instead of saving HTML as the artifact."""
+    mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+    output = tmp_path / "table.xlsx"
+    output.write_bytes(b"existing-xlsx")
+
+    class LoginRedirectResponse:
+        headers = {"content-type": "text/html; charset=utf-8"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def raise_for_status(self):
+            return None
+
+        def iter_bytes(self, chunk_size=65536):
+            yield b"<!doctype html><html><title>Sign in - Google Accounts</title></html>"
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url):
+            return LoginRedirectResponse()
+
+    with (
+        patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+        pytest.raises(ClientAuthenticationError, match="Redirected to login page"),
+    ):
+        mixin._download_url_sync(
+            "https://contribution.usercontent.google/download?c=token", str(output)
+        )
+
+    assert output.read_bytes() == b"existing-xlsx"
+    assert not list(tmp_path.glob(".nlm-download-*.tmp"))
+
+
+def test_download_url_sync_allows_non_login_html_content(tmp_path):
+    """Non-login text/html payloads still stream completely to disk."""
+    mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+    output = tmp_path / "snippet.html"
+
+    class HtmlFragmentResponse:
+        headers = {"content-type": "text/html; charset=utf-8"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def raise_for_status(self):
+            return None
+
+        def iter_bytes(self, chunk_size=65536):
+            yield b"<div>Hello "
+            yield b"world</div>"
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url):
+            return HtmlFragmentResponse()
+
+    with patch("notebooklm_tools.core.download.httpx.Client", FakeClient):
+        result = mixin._download_url_sync("https://example.com/snippet", str(output))
+
+    assert result == str(output)
+    assert output.read_bytes() == b"<div>Hello world</div>"
+    assert not list(tmp_path.glob(".nlm-download-*.tmp"))

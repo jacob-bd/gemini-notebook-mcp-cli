@@ -135,6 +135,12 @@ class DownloadMixin(BaseClient):
             and final.path.startswith(("/notebooklm/", "/rd-notebooklm/"))
         )
 
+    @staticmethod
+    def _is_html_login_redirect(first_chunk: bytes) -> bool:
+        """Return True when an HTML response chunk looks like a Google login redirect."""
+        lower = first_chunk.lower()
+        return b"<!doctype html>" in lower or b"sign in" in lower
+
     async def _download_url(
         self,
         url: str,
@@ -225,10 +231,7 @@ class DownloadMixin(BaseClient):
                         first_chunk = chunk
                         break
 
-                    if (
-                        b"<!doctype html>" in first_chunk.lower()
-                        or b"sign in" in first_chunk.lower()
-                    ):
+                    if self._is_html_login_redirect(first_chunk):
                         raise AuthenticationError(
                             "Download failed: Redirected to login page. "
                             "Run 'nlm login' to refresh credentials."
@@ -264,6 +267,8 @@ class DownloadMixin(BaseClient):
             os.replace(temp_file, output_file)
             return str(output_file)
 
+        except AuthenticationError:
+            raise
         except httpx.HTTPError as e:
             # Clean up temp file on failure
             if temp_file.exists():
@@ -315,12 +320,29 @@ class DownloadMixin(BaseClient):
                 client.stream("GET", url) as response,
             ):
                 response.raise_for_status()
-                with open(temp_file, "wb") as output:
-                    for chunk in response.iter_bytes(chunk_size=65536):
-                        output.write(chunk)
+                content_type = response.headers.get("content-type", "").lower()
+                if "text/html" in content_type:
+                    chunks = response.iter_bytes(chunk_size=8192)
+                    first_chunk = next(chunks, b"")
+                    if self._is_html_login_redirect(first_chunk):
+                        raise AuthenticationError(
+                            "Download failed: Redirected to login page. "
+                            "Run 'nlm login' to refresh credentials."
+                        )
+                    with open(temp_file, "wb") as output:
+                        if first_chunk:
+                            output.write(first_chunk)
+                        for chunk in chunks:
+                            output.write(chunk)
+                else:
+                    with open(temp_file, "wb") as output:
+                        for chunk in response.iter_bytes(chunk_size=65536):
+                            output.write(chunk)
 
             os.replace(temp_file, output_file)
             return str(output_file)
+        except AuthenticationError:
+            raise
         except httpx.HTTPError as e:
             if temp_file.exists():
                 temp_file.unlink()

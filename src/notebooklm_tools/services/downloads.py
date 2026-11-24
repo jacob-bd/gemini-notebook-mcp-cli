@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..core.client import NotebookLMClient
-from ..core.errors import ArtifactDownloadError
+from ..core.errors import ArtifactDownloadError, ClientAuthenticationError
 from ..utils.config import get_home_dir, get_storage_dir
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
@@ -376,6 +376,16 @@ def download_sync(
         )
     except (ValidationError, ServiceError):
         raise
+    except ClientAuthenticationError as e:
+        raise ServiceError(
+            f"Failed to download {artifact_type}: {e}",
+            user_message=(
+                f"Authentication expired while downloading {artifact_type}. "
+                "Run 'nlm login' to refresh credentials."
+            ),
+            hint="Run 'nlm login' to refresh credentials.",
+            debug_code="auth_required",
+        ) from e
     except Exception as e:
         raise ServiceError(
             f"Failed to download {artifact_type}: {e}",
@@ -415,6 +425,16 @@ async def _download_once_async(
         )
     except (ValidationError, ServiceError):
         raise
+    except ClientAuthenticationError as e:
+        raise ServiceError(
+            f"Failed to download {artifact_type}: {e}",
+            user_message=(
+                f"Authentication expired while downloading {artifact_type}. "
+                "Run 'nlm login' to refresh credentials."
+            ),
+            hint="Run 'nlm login' to refresh credentials.",
+            debug_code="auth_required",
+        ) from e
     except ArtifactDownloadError as e:
         if "still propagating" in e.details.lower():
             raise ServiceError(

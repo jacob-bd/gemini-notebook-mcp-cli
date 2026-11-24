@@ -309,3 +309,46 @@ def test_non_google_duplicate_names_keep_last_value(tmp_path):
         encoding="utf-8",
     )
     assert parse_cookies_from_file(f) == {"SID": "second-val"}
+
+
+# --- Cookie string files: comments and multiple lines ---
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "# my cookies\nSID=abc; HSID=def; SSID=ghi",
+        "SID=abc; HSID=def; SSID=ghi\n# end of file",
+        "SID=abc; HSID=def;\n  # note\nSSID=ghi",
+        "SID=abc;\nHSID=def;\nSSID=ghi",
+        "SID=abc\nHSID=def\nSSID=ghi",
+        "# note\r\nCookie: SID=abc; HSID=def;\r\nSSID=ghi\r\n",
+        "# Example: curl -b 'SID=sample; HSID=sample'\nSID=abc; HSID=def; SSID=ghi",
+    ],
+)
+def test_cookie_string_file_skips_comments_and_reads_every_line(tmp_path, text):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_bytes(text.encode("utf-8"))
+    assert parse_cookies_from_file(cookie_file) == {"SID": "abc", "HSID": "def", "SSID": "ghi"}
+
+
+def test_cookie_string_file_keeps_hash_inside_a_value(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("SID=a#b; HSID=c", encoding="utf-8")
+    assert parse_cookies_from_file(cookie_file) == {"SID": "a#b", "HSID": "c"}
+
+
+@pytest.mark.parametrize(
+    "cookie_argument", ["-b '#probe=abc; SID=def'", "-H 'Cookie: #probe=abc; SID=def'"]
+)
+def test_curl_file_keeps_hash_at_start_of_cookie_name(tmp_path, cookie_argument):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(f"curl https://example.invalid {cookie_argument}", encoding="utf-8")
+    assert parse_cookies_from_file(cookie_file) == {"#probe": "abc", "SID": "def"}
+
+
+def test_cookie_string_file_with_only_comments_is_rejected(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("# nothing here\n", encoding="utf-8")
+    with pytest.raises(AuthenticationError):
+        parse_cookies_from_file(cookie_file)

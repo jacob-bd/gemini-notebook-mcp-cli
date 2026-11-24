@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `nlm login --file` now skips `#` comment lines and reads a cookie string spread over several lines, as `docs/AUTHENTICATION.md` describes. Before, a trailing `# note` line was saved inside the last cookie value and a leading one made the file fail to parse.
+
 ## [0.16.6] - 2026-11-21
 
 ### Changed

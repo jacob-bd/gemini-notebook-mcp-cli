@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.7] - 2026-11-23
+
 ### Fixed
 
-- `nlm login --file` now skips `#` comment lines and reads a cookie string spread over several lines, as `docs/AUTHENTICATION.md` describes. Before, a trailing `# note` line was saved inside the last cookie value and a leading one made the file fail to parse.
+- Manual login with `nlm login --file` now skips `#` comment lines and reads cookies spread across multiple lines. Commented-out cURL examples are ignored, and cURL imports preserve cookie names that start with `#`. ([#411](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/411), [#412](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/412))
+
+### Credits
+
+Thanks to **@goranai** for reproducing the login bug and contributing the fix and regression tests in [#412](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/412).
 
 ## [0.16.6] - 2026-11-21
 

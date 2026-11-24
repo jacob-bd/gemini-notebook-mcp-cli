@@ -73,13 +73,13 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
     if netscape_cookies:
         return netscape_cookies
 
-    # Try to extract from a cURL command (Cookie header or -b/--cookie value)
-    content = _extract_cookie_argument_from_curl(content)
-
-    # Skip comment lines, as the docs promise ("Lines starting with # are treated as comments")
+    # Skip file comments before looking for cURL arguments.
     content = "\n".join(
         line for line in content.splitlines() if not line.lstrip().startswith("#")
     ).strip()
+
+    # Try to extract from a cURL command (Cookie header or -b/--cookie value)
+    content = _extract_cookie_argument_from_curl(content)
 
     # Try to extract Cookie header value
     if content.lower().startswith("cookie:"):

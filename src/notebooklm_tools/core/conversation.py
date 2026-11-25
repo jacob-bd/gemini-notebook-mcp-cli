@@ -1057,6 +1057,10 @@ class ConversationMixin(BaseClient):
                         "source_id": source_id,
                         "citation_number": citation_number,
                     }
+                    # Preserve the native passage/chunk identifier when present.
+                    chunk = passage[0]
+                    if isinstance(chunk, list) and chunk and isinstance(chunk[0], str) and chunk[0]:
+                        ref_entry["chunk_id"] = chunk[0]
                     if cited_text:
                         ref_entry["cited_text"] = cited_text
 

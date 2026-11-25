@@ -464,10 +464,12 @@ def _artifact(**overrides):
 
 
 def _echo_path_sync(notebook_id, output_path, artifact_id=None, *args, **kwargs):
+    Path(output_path).write_text("downloaded", encoding="utf-8")
     return output_path
 
 
 async def _echo_path_async(notebook_id, output_path, artifact_id=None, *args, **kwargs):
+    Path(output_path).write_text("downloaded", encoding="utf-8")
     return output_path
 
 
@@ -749,6 +751,41 @@ class TestDownloadAll:
         assert result["items"][0]["title"] == "Fresh"
         assert result["skipped"][0]["reason"] == "already downloaded"
         assert (nb_dir / "Existing.md").read_text(encoding="utf-8") == "old content"
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_preserves_concurrent_destination(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(monkeypatch, [_artifact(type="report", title="Report")])
+        destination = tmp_path / "My Notebook" / "Report.md"
+
+        def competing_download(notebook_id, output_path, artifact_id):
+            Path(output_path).write_text("our bytes", encoding="utf-8")
+            destination.write_text("other writer", encoding="utf-8")
+            return output_path
+
+        bulk_client.download_report.side_effect = competing_download
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+
+        assert result["downloaded"] == 0
+        assert result["failed"] == 0
+        assert result["skipped"][0]["reason"] == "already downloaded"
+        assert destination.read_text(encoding="utf-8") == "other writer"
+        assert list(destination.parent.iterdir()) == [destination]
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_cleans_failed_staging(self, bulk_client, monkeypatch, tmp_path):
+        _patch_lookups(monkeypatch, [_artifact(type="report", title="Report")])
+
+        def failed_download(notebook_id, output_path, artifact_id):
+            Path(output_path).write_text("partial", encoding="utf-8")
+            raise RuntimeError("transfer failed")
+
+        bulk_client.download_report.side_effect = failed_download
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["failed"] == 1
+        assert result["downloaded"] == 0
+        assert not list((tmp_path / "My Notebook").iterdir())
 
     @pytest.mark.asyncio
     async def test_without_skip_existing_overwrites(self, bulk_client, monkeypatch, tmp_path):

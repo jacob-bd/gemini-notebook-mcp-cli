@@ -223,3 +223,28 @@ def test_download_artifact_forwards_readiness_options():
         wait_timeout=9,
         poll_interval=0.5,
     )
+
+
+def test_download_artifact_auth_error_surfaces_login_hint():
+    mock_client = MagicMock()
+    error = ServiceError(
+        "Failed to download file: auth expired",
+        user_message=(
+            "Authentication expired while downloading file. Run 'nlm login' to refresh credentials."
+        ),
+        hint="Run 'nlm login' to refresh credentials.",
+        debug_code="auth_required",
+    )
+
+    with (
+        patch("notebooklm_tools.mcp.tools.downloads.get_client", return_value=mock_client),
+        patch(
+            "notebooklm_tools.mcp.tools.downloads.downloads_service.download_async",
+            new=AsyncMock(side_effect=error),
+        ),
+    ):
+        result = downloads.download_artifact("nb-1", "file", "artifact.bin")
+
+    assert result["status"] == "error"
+    assert "Authentication expired while downloading file" in result["error"]
+    assert "nlm login" in result["hint"]

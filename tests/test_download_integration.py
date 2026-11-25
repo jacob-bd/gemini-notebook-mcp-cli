@@ -186,3 +186,42 @@ class TestMCPDownloads:
 
         assert result["status"] == "success"
         assert Path(result["path"]).exists()
+
+
+def test_cli_and_mcp_reject_login_page_redirects(tmp_path, monkeypatch):
+    """Live check: an expired download must not be saved as an artifact."""
+    from unittest.mock import patch
+
+    from typer.testing import CliRunner
+
+    from notebooklm_tools.cli.main import app
+    from notebooklm_tools.core.download import DownloadMixin
+    from notebooklm_tools.mcp.tools import downloads as mcp_downloads
+
+    monkeypatch.setenv("NOTEBOOKLM_DOWNLOAD_DIR", str(tmp_path))
+
+    class ExpiredDownloadClient:
+        def download_file(self, notebook_id, output_path, artifact_id=None):
+            mixin = DownloadMixin(cookies={"SID": "invalid"}, csrf_token="invalid")
+            return mixin._download_url_sync("https://notebook.google.com/", output_path)
+
+    cli_out = tmp_path / "cli.bin"
+    with patch(
+        "notebooklm_tools.cli.commands.download.get_client",
+        return_value=ExpiredDownloadClient(),
+    ):
+        result = CliRunner().invoke(app, ["download", "file", "nb-1", "--output", str(cli_out)])
+
+    assert result.exit_code == 1
+    assert "nlm login" in result.output
+    assert not cli_out.exists()
+
+    with patch(
+        "notebooklm_tools.mcp.tools.downloads.get_client",
+        return_value=ExpiredDownloadClient(),
+    ):
+        mcp_result = mcp_downloads.download_artifact("nb-1", "file", "mcp.bin")
+
+    assert mcp_result["status"] == "error"
+    assert "nlm login" in mcp_result["hint"]
+    assert not (tmp_path / "mcp.bin").exists()

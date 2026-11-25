@@ -79,7 +79,7 @@ def parse_cookies_from_file(file_path: str | Path) -> dict[str, str]:
     ).strip()
 
     # Try to extract from a cURL command (Cookie header or -b/--cookie value)
-    content = _extract_cookie_argument_from_curl(content)
+    content = _extract_cookie_argument_from_curl(_unescape_windows_curl(content))
 
     # Try to extract Cookie header value
     if content.lower().startswith("cookie:"):
@@ -127,6 +127,31 @@ _CURL_COOKIE_FLAG_RE = re.compile(
 )
 _CURL_COOKIE_FLAG_BARE_RE = re.compile(r"(?:^|\s)(?:-b|--cookie)(?:\s+|=)(?P<value>[^\s'\"]+)")
 _COOKIE_NAME_RE = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+
+
+_WINDOWS_CURL_COOKIE_RE = re.compile(
+    r'(?:^|\s)(?:(?:-b|--cookie)\s+|(?:-H|--header)\s+(?=")(?="\s*cookie:))'
+    r'"(?P<value>(?:[^"]|"")*)"',
+    re.IGNORECASE,
+)
+
+
+def _unescape_windows_curl(content: str) -> str:
+    """Return the cookie argument of a Chrome "Copy as cURL (cmd)" export.
+
+    On Windows, DevTools wraps every argument as ``^"..."^``, puts a ``^`` in
+    front of special characters, and writes a literal quote as ``""``. The
+    cookie value comes back as a plain ``-b '...'`` argument for the cURL
+    extraction below. Other inputs are returned unchanged.
+    """
+    if not content.lstrip().lower().startswith("curl") or '^"' not in content:
+        return content
+    text = re.sub(r"\^(.)", r"\1", content, flags=re.DOTALL)
+    match = _WINDOWS_CURL_COOKIE_RE.search(text)
+    if not match:
+        return content
+    value = match.group("value").replace('""', '"').replace("\\\\", "\\")
+    return re.sub(r"^\s*cookie:\s*", "", value, flags=re.IGNORECASE)
 
 
 def _extract_cookie_argument_from_curl(content: str) -> str:

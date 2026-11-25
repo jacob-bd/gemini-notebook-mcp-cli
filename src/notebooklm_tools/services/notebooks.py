@@ -3,6 +3,7 @@
 import httpx
 
 from ..core.client import NotebookLMClient
+from ..core.sources import source_url_from_metadata
 from ..utils.config import get_notebook_url
 from ._compat import TypedDict
 from .errors import CreationError, NotFoundError, ServiceError, ValidationError
@@ -33,10 +34,11 @@ class NotebookListResult(TypedDict):
 
 
 class SourceInfo(TypedDict):
-    """Source summary in notebook details."""
+    """Source summary in notebook details, with original URL when available."""
 
     id: str
     title: str
+    url: str | None
 
 
 class NotebookDetailResult(TypedDict):
@@ -186,7 +188,15 @@ def get_notebook(
                 if isinstance(src, list) and len(src) >= 2:
                     src_id = src[0][0] if isinstance(src[0], list) and src[0] else src[0]
                     src_title = src[1] if len(src) > 1 else "Untitled"
-                    sources.append({"id": src_id, "title": src_title})
+                    metadata = src[2] if len(src) > 2 and isinstance(src[2], list) else []
+                    source_type = metadata[4] if len(metadata) > 4 else None
+                    sources.append(
+                        {
+                            "id": src_id,
+                            "title": src_title,
+                            "url": source_url_from_metadata(source_type, metadata),
+                        }
+                    )
 
             return {
                 "notebook_id": nb_id,

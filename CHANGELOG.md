@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.8] - 2026-11-25
+
+### Fixed
+
+- Artifact downloads now prompt users to run `nlm login` when Google returns a sign-in page. Synchronous downloads preserve existing files instead of replacing them with sign-in HTML. ([#414](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/414))
+
+### Credits
+
+Thanks to **@FFXFF1** for the fix and regression tests.
+
 ## [0.16.7] - 2026-11-23
 
 ### Fixed

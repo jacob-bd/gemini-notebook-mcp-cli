@@ -193,6 +193,8 @@ nlm download all <notebook> --output-dir ./exports
 nlm download all --all-notebooks --output-dir ./exports --skip-existing
 ```
 
+With `--skip-existing`, completed downloads never replace a destination that another download has already published. The default overwrite behavior is unchanged.
+
 Audio arrives as AAC in an MP4 container, so it needs a `.m4a` or `.mp4`
 suffix; `.mp3` and other mismatched extensions are rejected rather than
 written with bytes that contradict the name. Transcode afterwards if you

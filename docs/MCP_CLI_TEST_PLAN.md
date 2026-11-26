@@ -1001,7 +1001,7 @@ files that already exist.
 
 **Expected:** One subdirectory per notebook. On a second run with
 `skip_existing`, previously downloaded artifacts are reported as skipped
-("already downloaded") and only new artifacts are fetched. A failure on one
+("already downloaded") and only new artifacts are fetched. If a file appears at the target during a download, the completed transfer is discarded and the existing file remains unchanged. A failure on one
 notebook doesn't stop the sweep; result includes per-notebook counts and
 `errored_notebooks`.
 

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from notebooklm_tools.core.base import BaseClient
+from notebooklm_tools.core.errors import RPCError
 from notebooklm_tools.core.research import ResearchMixin
 
 
@@ -79,6 +80,46 @@ class TestResearchMixinMethods:
         result = mixin.import_research_sources("notebook-id", "task-id", [])
 
         assert result == []
+
+    def test_import_rpc_has_no_auth_or_ambiguous_server_replay(self):
+        """An import mutation must not use the generic read-only retry pipeline."""
+        mixin = ResearchMixin(cookies={"test": "cookie"}, csrf_token="test")
+        sources = [{"url": "https://example.org", "title": "Synthetic", "result_type": 1}]
+
+        with (
+            patch.object(mixin, "get_notebook_sources_with_types", return_value=[], create=True),
+            patch.object(mixin, "_call_rpc", return_value=[[]]) as rpc,
+        ):
+            mixin.import_research_sources("notebook-id", "task-id", sources)
+
+        assert rpc.call_count == 1
+        kwargs = rpc.call_args.kwargs
+        assert kwargs["retry_server_errors"] is False
+        assert kwargs["_retry"] is True
+        assert kwargs["_deep_retry"] is True
+
+    @pytest.mark.parametrize("code", [3, 9])
+    def test_import_ambiguous_rpc_never_confirms_unrelated_source(self, code):
+        """An unrelated new source cannot prove this task's import succeeded."""
+        mixin = ResearchMixin(cookies={"test": "cookie"}, csrf_token="test")
+        sources = [{"url": "https://example.org", "title": "Synthetic", "result_type": 1}]
+        with (
+            patch.object(
+                mixin,
+                "get_notebook_sources_with_types",
+                return_value=[{"id": "unrelated-new-source"}],
+                create=True,
+            ) as inventory,
+            patch.object(
+                mixin,
+                "_call_rpc",
+                side_effect=RPCError("provider outcome unknown", error_code=code),
+            ) as rpc,
+            pytest.raises(RPCError),
+        ):
+            mixin.import_research_sources("notebook-id", "original-task-id", sources)
+        rpc.assert_called_once()
+        inventory.assert_not_called()
 
 
 class TestPollResearchMultiTaskFallback:

@@ -73,7 +73,9 @@ def research_status(
         task_id: Optional Task ID to poll for a specific research task.
         query: Optional query text for fallback matching when task_id changes (deep research).
             Contributed by @saitrogen (PR #15).
-        auto_import: If True, automatically import sources when research completes.
+        auto_import: If True, require the original task_id from research_start and
+            use a durable at-most-once claim. Uncertain mutations are never
+            retried automatically; reconcile existing sources manually.
                     If False (default), returns next_action hint to call research_import manually.
     """
     try:

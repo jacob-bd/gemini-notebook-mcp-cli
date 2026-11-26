@@ -8,6 +8,7 @@ from ..core.client import NotebookLMClient
 from ..core.constants import RESULT_TYPE_DEEP_REPORT
 from ..core.errors import RPCDriftError, RPCError
 from ._compat import TypedDict
+from ._research_import_guard import import_once
 from .errors import ServiceError, ValidationError
 
 VALID_SOURCES = ("web", "drive")
@@ -37,7 +38,16 @@ class ResearchStartResult(TypedDict):
     message: str
 
 
-class ResearchStatusResult(TypedDict):
+class _ResearchStatusOptional(TypedDict, total=False):
+    """Additional status fields available when automatic import is requested."""
+
+    imported: bool | None
+    import_state: str
+    import_error: str
+    next_action: str | None
+
+
+class ResearchStatusResult(_ResearchStatusOptional):
     """Result of polling research status."""
 
     status: str
@@ -308,7 +318,9 @@ def poll_research(
         max_wait: Max seconds to wait (default: 0 = single check).
             When > 0, polls repeatedly until status is "completed" or
             the timeout is reached.
-        auto_import: Import the sources automatically once research completes.
+        auto_import: Import at most once per profile/notebook/original task ID via
+            a durable claim. Requires explicit task_id to survive provider ID
+            mutations. Unknown outcomes block replay until reconciliation.
         no_research_grace: Seconds to keep retrying when the poll comes back empty
             for a known task_id (a task started moments ago may not be visible
             yet). Only applies while blocking (max_wait > 0) with a task_id, and
@@ -386,15 +398,32 @@ def poll_research(
 
     completed_task_id = result.get("task_id") if status == "completed" else None
 
-    imported = False
-    if auto_import and status == "completed" and completed_task_id:
-        try:
-            import_research(client, notebook_id, completed_task_id)
-            imported = True
-        except Exception:
-            pass
+    imported: bool | None = False
+    import_state = "not_requested" if not auto_import else "not_attempted"
+    import_error = None
+    if auto_import and status == "completed":
+        # Only the caller's original task ID is stable across deep-research
+        # provider task-ID changes. Never auto-import without that binding.
+        if not isinstance(task_id, str) or not task_id.strip():
+            imported = None
+            import_state = "guard_unavailable"
+            import_error = "import_task_identity_required"
+        elif not isinstance(completed_task_id, str) or completed_task_id != task_id:
+            # Core polling can fall back to a different task when the provider
+            # mutates IDs. That fallback is acceptable for display, never for
+            # a non-idempotent import of an unproven task.
+            imported = None
+            import_state = "guard_unavailable"
+            import_error = "import_task_mismatch"
+        else:
+            imported, import_state, import_error = import_once(
+                client,
+                notebook_id,
+                task_id,
+                lambda: import_research(client, notebook_id, task_id),
+            )
 
-    return {
+    response = {
         "status": status,
         "notebook_id": notebook_id,
         "task_id": result.get("task_id"),
@@ -402,6 +431,7 @@ def poll_research(
         "sources": sources,
         "report": report,
         "imported": imported if auto_import else None,
+        "import_state": import_state,
         "message": "Use research_import to add sources to notebook."
         if (status == "completed" and not auto_import)
         else None,
@@ -412,6 +442,29 @@ def poll_research(
             else None
         ),
     }
+    if import_error is not None:
+        response["import_error"] = import_error
+        if import_error == "import_task_identity_required":
+            response["message"] = "Automatic import skipped: original task ID is required."
+            response["next_action"] = (
+                "Pass the original research_start task_id to research_status "
+                "with auto_import=True; check existing notebook sources first."
+            )
+        elif import_error == "import_task_mismatch":
+            response["message"] = "Automatic import blocked: provider task identity changed."
+            response["next_action"] = (
+                "Confirm the original-to-provider research task association before "
+                "using the explicitly requested manual import; do not auto-retry."
+            )
+        else:
+            response["message"] = (
+                "Research completed, but automatic source import was not confirmed."
+            )
+            response["next_action"] = (
+                "Check the notebook source list and reconcile existing source IDs "
+                "before manually attempting another import."
+            )
+    return response
 
 
 def import_research(

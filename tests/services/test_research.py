@@ -15,9 +15,18 @@ from notebooklm_tools.services.research import (
 )
 
 
+@pytest.fixture(autouse=True)
+def isolated_research_import_claims(tmp_path, monkeypatch):
+    """No test may read or write real profile state while importing."""
+    monkeypatch.setenv("NOTEBOOKLM_MCP_CLI_PATH", str(tmp_path / "storage"))
+
+
 @pytest.fixture
 def mock_client():
-    return MagicMock()
+    client = MagicMock()
+    client._profile_name = "synthetic-test-profile"
+    client._is_env_auth = False
+    return client
 
 
 class _FakeClock:
@@ -458,11 +467,101 @@ class TestPollResearch:
         }
         mock_client.import_research_sources.return_value = [{"title": "A"}]
 
-        result = poll_research(mock_client, "nb-1", auto_import=True)
+        result = poll_research(mock_client, "nb-1", task_id="task-xyz", auto_import=True)
 
         assert result["status"] == "completed"
         assert result.get("imported") is True
+        assert result["import_state"] == "confirmed"
         mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_failure_is_visible_without_retry(self, mock_client):
+        """Completed research must not conceal an uncertain source import."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-xyz",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.side_effect = RuntimeError("private details")
+
+        result = poll_research(mock_client, "nb-1", task_id="task-xyz", auto_import=True)
+
+        assert result["status"] == "completed"
+        assert result["task_id"] == "task-xyz"
+        assert result["imported"] is None
+        assert result["import_state"] == "unconfirmed"
+        assert result["import_error"] == "import_unconfirmed"
+        assert "private details" not in str(result)
+        assert "not confirmed" in result["message"]
+        assert "reconcile" in result["next_action"]
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_repeated_completed_poll_is_read_only(self, mock_client):
+        """A repeated poll reuses the prior confirmation without a second import."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-once",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        first = poll_research(mock_client, "nb-1", task_id="task-once", auto_import=True)
+        second = poll_research(mock_client, "nb-1", task_id="task-once", auto_import=True)
+
+        assert first["imported"] is True
+        assert second["imported"] is True
+        assert first["import_state"] == second["import_state"] == "confirmed"
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_failed_claim_does_not_replay(self, mock_client):
+        """Unknown provider success must not turn polling into duplicate writes."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-uncertain",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.side_effect = RuntimeError("unknown provider outcome")
+
+        first = poll_research(mock_client, "nb-1", task_id="task-uncertain", auto_import=True)
+        second = poll_research(mock_client, "nb-1", task_id="task-uncertain", auto_import=True)
+
+        assert first["imported"] is second["imported"] is None
+        assert first["import_state"] == second["import_state"] == "unconfirmed"
+        assert first["import_error"] == second["import_error"] == "import_unconfirmed"
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_requires_stable_original_task_id(self, mock_client):
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "provider-changed-id",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+
+        status = poll_research(mock_client, "nb-1", auto_import=True)
+        assert status["imported"] is None
+        assert status["import_state"] == "guard_unavailable"
+        assert status["import_error"] == "import_task_identity_required"
+        mock_client.import_research_sources.assert_not_called()
+
+    def test_auto_import_rejects_unproven_provider_task_id(self, mock_client):
+        """Provider deep-research ID mutation must not import an unrelated task."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "provider-changed-id",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        first = poll_research(mock_client, "nb-1", task_id="original-id", auto_import=True)
+        second = poll_research(mock_client, "nb-1", task_id="original-id", auto_import=True)
+        assert first["import_state"] == second["import_state"] == "guard_unavailable"
+        assert first["import_error"] == second["import_error"] == "import_task_mismatch"
+        assert first["imported"] is second["imported"] is None
+        mock_client.import_research_sources.assert_not_called()
 
     def test_auto_import_false_does_not_import(self, mock_client):
         """auto_import=False (default) never calls import."""

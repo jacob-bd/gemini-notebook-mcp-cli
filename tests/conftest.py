@@ -4,8 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from notebooklm_tools.core.cookie_rotation import DISABLE_ROTATE_COOKIES_ENV
-
 
 def _is_allowed_live_modification(rel_path: str) -> bool:
     """Check if a modified file in ~/.notebooklm-mcp-cli is on the live-written allowlist."""
@@ -95,6 +93,10 @@ def _evaluate_tripwire(
         before_cli, after_cli, before_mcp, after_mcp
     )
 
+    if os.environ.get("NLM_OFFLINE_STRICT") == "1":
+        critical_failures.extend(allowed_warnings)
+        allowed_warnings = []
+
     if allowed_warnings:
         print("\nStorage tripwire warning (live application files modified during run):")
         for warn in allowed_warnings:
@@ -116,13 +118,43 @@ _tripwire_key = pytest.StashKey[
 ]()
 
 
+def _verify_strict_offline_environment() -> None:
+    """Fail before collection unless all inherited filesystem roots are synthetic."""
+    if os.environ.get("NLM_OFFLINE_STRICT") != "1":
+        return
+    if os.environ.get("ALLOW_REAL_KEYSTORE") == "1":
+        raise pytest.UsageError("Offline tests cannot access the real OS credential store")
+    root_string = os.environ.get("NLM_TEST_ISOLATED_ROOT")
+    if not root_string:
+        raise pytest.UsageError("NLM_OFFLINE_STRICT requires NLM_TEST_ISOLATED_ROOT")
+    root = Path(root_string).resolve()
+    required = (
+        "HOME",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "TEMP",
+        "TMP",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_STATE_HOME",
+        "NOTEBOOKLM_MCP_CLI_PATH",
+    )
+    for name in required:
+        value = os.environ.get(name)
+        if not value or not Path(value).resolve().is_relative_to(root):
+            raise pytest.UsageError(f"Unsafe offline test environment: {name}")
+
+
 def pytest_configure(config):
     """Snapshot real developer storage before collection imports any package module.
 
     Taken here (not in a session fixture) so writes triggered at import/collection
     time are caught too.
     """
-    if os.environ.get("NOTEBOOKLM_E2E") == "1":
+    _verify_strict_offline_environment()
+    if os.environ.get("NOTEBOOKLM_E2E") == "1" and os.environ.get("NLM_OFFLINE_STRICT") != "1":
         print("\nStorage tripwire: OFF (NOTEBOOKLM_E2E=1)")
         return
 
@@ -164,6 +196,16 @@ def pytest_sessionfinish(session, exitstatus):
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
+def pytest_runtest_setup(item):
+    """Prevent explicit live-account paths in the strict offline suite."""
+    if os.environ.get("NLM_OFFLINE_STRICT") != "1":
+        return
+    if item.get_closest_marker("real_os_store") or item.get_closest_marker("wizard_e2e"):
+        pytest.fail("Real OS credentials and setup-wizard tests are prohibited offline")
+    if item.get_closest_marker("e2e") and os.environ.get("NOTEBOOKLM_E2E") == "1":
+        pytest.fail("Authenticated E2E tests are prohibited offline")
+
+
 @pytest.fixture(autouse=True)
 def _isolate_home(monkeypatch, tmp_path_factory, request):
     """Isolate HOME and Path.home() for every test except real_os_store and explicit e2e."""
@@ -176,9 +218,24 @@ def _isolate_home(monkeypatch, tmp_path_factory, request):
     fake_home = tmp_path_factory.mktemp("fake_home")
     monkeypatch.setenv("HOME", str(fake_home))
     monkeypatch.setenv("USERPROFILE", str(fake_home))
-    # Linux tools resolve config/data/cache from XDG_* before HOME; keep them in the fake home too
-    for var in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
-        monkeypatch.delenv(var, raising=False)
+    # Subprocesses don't inherit the in-process Path.home monkeypatch.
+    # Redirect platform app-data and XDG locations before they can write auth.
+    for name, suffix in (
+        ("APPDATA", "AppData/Roaming"),
+        ("LOCALAPPDATA", "AppData/Local"),
+        ("XDG_CONFIG_HOME", ".config"),
+        ("XDG_DATA_HOME", ".local/share"),
+        ("XDG_CACHE_HOME", ".cache"),
+        ("XDG_STATE_HOME", ".local/state"),
+        ("TEMP", "Temp"),
+        ("TMP", "Temp"),
+    ):
+        directory = fake_home / suffix
+        directory.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv(name, str(directory))
+    if os.name == "nt":
+        monkeypatch.setenv("HOMEDRIVE", fake_home.drive)
+        monkeypatch.setenv("HOMEPATH", str(fake_home)[len(fake_home.drive) :])
     monkeypatch.setattr(
         Path,
         "home",
@@ -232,6 +289,8 @@ def _disable_cookie_rotation(monkeypatch):
     the mock. Tests that exercise rotation itself re-enable it with
     monkeypatch.delenv.
     """
+    from notebooklm_tools.core.cookie_rotation import DISABLE_ROTATE_COOKIES_ENV
+
     monkeypatch.setenv(DISABLE_ROTATE_COOKIES_ENV, "1")
 
 

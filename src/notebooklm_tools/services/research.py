@@ -37,7 +37,16 @@ class ResearchStartResult(TypedDict):
     message: str
 
 
-class ResearchStatusResult(TypedDict):
+class _ResearchStatusOptional(TypedDict, total=False):
+    """Additional status fields available when automatic import is requested."""
+
+    imported: bool | None
+    import_state: str
+    import_error: str
+    next_action: str | None
+
+
+class ResearchStatusResult(_ResearchStatusOptional):
     """Result of polling research status."""
 
     status: str
@@ -386,18 +395,22 @@ def poll_research(
 
     completed_task_id = result.get("task_id") if status == "completed" else None
 
-    imported = False
+    imported: bool | None = False
+    import_state = "not_requested" if not auto_import else "not_attempted"
     import_error = None
     if auto_import and status == "completed" and completed_task_id:
         try:
             import_research(client, notebook_id, completed_task_id)
             imported = True
-        except Exception as exc:
-            # Research itself succeeded; do not lose its task/status record or
-            # blindly replay an import with an uncertain partial outcome.
-            # Do not expose raw provider exceptions, which may contain URLs
-            # or tokens. Preserve a stable, non-sensitive failure category.
-            import_error = type(exc).__name__
+            import_state = "confirmed"
+        except Exception:
+            # The provider may have accepted part or all of the mutation;
+            # a boolean False would incorrectly claim that nothing changed.
+            imported = None
+            import_state = "unconfirmed"
+            # A fixed public code avoids exposing exception messages or
+            # implementation-dependent exception class names.
+            import_error = "import_unconfirmed"
 
     response = {
         "status": status,
@@ -407,6 +420,7 @@ def poll_research(
         "sources": sources,
         "report": report,
         "imported": imported if auto_import else None,
+        "import_state": import_state,
         "message": "Use research_import to add sources to notebook."
         if (status == "completed" and not auto_import)
         else None,

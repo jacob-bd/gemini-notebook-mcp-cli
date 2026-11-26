@@ -462,6 +462,7 @@ class TestPollResearch:
 
         assert result["status"] == "completed"
         assert result.get("imported") is True
+        assert result["import_state"] == "confirmed"
         mock_client.import_research_sources.assert_called_once()
 
     def test_auto_import_failure_is_visible_without_retry(self, mock_client):
@@ -478,9 +479,10 @@ class TestPollResearch:
 
         assert result["status"] == "completed"
         assert result["task_id"] == "task-xyz"
-        assert result["imported"] is False
-        assert "import_error" in result
-        assert "private details" not in result["import_error"]
+        assert result["imported"] is None
+        assert result["import_state"] == "unconfirmed"
+        assert result["import_error"] == "import_unconfirmed"
+        assert "private details" not in str(result)
         assert "not confirmed" in result["message"]
         assert "reconcile" in result["next_action"]
         mock_client.import_research_sources.assert_called_once()

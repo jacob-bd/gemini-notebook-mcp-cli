@@ -122,12 +122,22 @@ def _verify_strict_offline_environment() -> None:
     """Fail before collection unless all inherited filesystem roots are synthetic."""
     if os.environ.get("NLM_OFFLINE_STRICT") != "1":
         return
-    if os.environ.get("ALLOW_REAL_KEYSTORE") == "1":
+    # Even the string "0" is truthy to some legacy test selection code.
+    # Require these opt-in flags to be absent entirely in strict offline mode.
+    if os.environ.get("ALLOW_REAL_KEYSTORE"):
         raise pytest.UsageError("Offline tests cannot access the real OS credential store")
+    if os.environ.get("NOTEBOOKLM_E2E"):
+        raise pytest.UsageError("Offline tests cannot enable live E2E authentication")
     root_string = os.environ.get("NLM_TEST_ISOLATED_ROOT")
     if not root_string:
         raise pytest.UsageError("NLM_OFFLINE_STRICT requires NLM_TEST_ISOLATED_ROOT")
     root = Path(root_string).resolve()
+    monitored = os.environ.get("NLM_OFFLINE_MONITORED_HOME")
+    if not monitored or not Path(monitored).is_absolute():
+        raise pytest.UsageError("NLM_OFFLINE_STRICT requires absolute NLM_OFFLINE_MONITORED_HOME")
+    monitored_home = Path(monitored).resolve()
+    if monitored_home.is_relative_to(root) or root.is_relative_to(monitored_home):
+        raise pytest.UsageError("Monitored real home and synthetic test root must be disjoint")
     required = (
         "HOME",
         "USERPROFILE",
@@ -158,7 +168,14 @@ def pytest_configure(config):
         print("\nStorage tripwire: OFF (NOTEBOOKLM_E2E=1)")
         return
 
-    real_home_str = os.environ.get("HOME") or os.environ.get("USERPROFILE")
+    # Strict mode must monitor the independently pinned real home, not the
+    # synthetic HOME/USERPROFILE used by subprocesses. The runner must capture
+    # NLM_OFFLINE_MONITORED_HOME *before* redirecting those variables.
+    real_home_str = (
+        os.environ["NLM_OFFLINE_MONITORED_HOME"]
+        if os.environ.get("NLM_OFFLINE_STRICT") == "1"
+        else os.environ.get("HOME") or os.environ.get("USERPROFILE")
+    )
     if not real_home_str:
         return
 
@@ -202,7 +219,7 @@ def pytest_runtest_setup(item):
         return
     if item.get_closest_marker("real_os_store") or item.get_closest_marker("wizard_e2e"):
         pytest.fail("Real OS credentials and setup-wizard tests are prohibited offline")
-    if item.get_closest_marker("e2e") and os.environ.get("NOTEBOOKLM_E2E") == "1":
+    if item.get_closest_marker("e2e"):
         pytest.fail("Authenticated E2E tests are prohibited offline")
 
 

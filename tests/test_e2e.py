@@ -15,9 +15,13 @@ from pathlib import Path
 import pytest
 
 # Skip all E2E tests if NOTEBOOKLM_E2E env var is not set
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("NOTEBOOKLM_E2E"), reason="E2E tests disabled. Set NOTEBOOKLM_E2E=1 to run."
-)
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        os.environ.get("NOTEBOOKLM_E2E") != "1",
+        reason="E2E tests disabled. Set NOTEBOOKLM_E2E=1 to run.",
+    ),
+]
 
 
 @pytest.fixture(scope="module")

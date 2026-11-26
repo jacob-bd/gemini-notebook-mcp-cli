@@ -67,6 +67,12 @@ def test_youtube_uses_its_own_slot_not_web_slot():
             "https://www.youtube.com/watch?v=test",
             "https://www.youtube.com/watch?v=test",
         ),
+        (
+            constants.SOURCE_TYPE_PDF,
+            7,
+            "https://example.org/manual.pdf",
+            "https://example.org/manual.pdf",
+        ),
         (constants.SOURCE_TYPE_WEB_PAGE, 7, "javascript:alert(1)", None),
         (constants.SOURCE_TYPE_WORD_DOC, 7, "https://example.org/false-drive", None),
         (None, 7, "https://example.org/untyped", None),

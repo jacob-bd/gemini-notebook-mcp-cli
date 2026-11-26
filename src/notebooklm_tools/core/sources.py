@@ -53,11 +53,11 @@ def _drive_file_id(source_type: object, metadata: list[Any]) -> str | None:
 def source_url_from_metadata(source_type: object, metadata: list[Any]) -> str | None:
     """Return a verified HTTP(S) link from a source-type-specific metadata slot.
 
-    Web sources have the URL at ``metadata[7][0]``; YouTube sources use
+    Web and URL-backed PDF sources have the URL at ``metadata[7][0]``; YouTube sources use
     ``metadata[5][0]``. Other source types require independent field-shape
     evidence before any string can be advertised as an original URL.
     """
-    if source_type == constants.SOURCE_TYPE_WEB_PAGE:
+    if source_type in (constants.SOURCE_TYPE_WEB_PAGE, constants.SOURCE_TYPE_PDF):
         info = metadata[7] if len(metadata) > 7 else None
     elif source_type == constants.SOURCE_TYPE_YOUTUBE:
         info = metadata[5] if len(metadata) > 5 else None

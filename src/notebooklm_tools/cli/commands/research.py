@@ -299,10 +299,19 @@ def _display_research_status(result: dict, compact: bool) -> None:
                 console.print(f"      [dim]{url}[/dim]")
 
     if status == "completed":
-        nb_id = result.get("notebook_id", "")
-        console.print(
-            f"\n[dim]Run 'nlm research import {nb_id} <task-id>' to import sources.[/dim]"
-        )
+        import_state = result.get("import_state")
+        if import_state == "confirmed":
+            console.print("\n[green]Automatic source import already confirmed.[/green]")
+        elif import_state in {"unconfirmed", "guard_unavailable"}:
+            console.print(
+                "\n[yellow]Automatic import unconfirmed or blocked. "
+                "Reconcile existing notebook sources before any manual retry.[/yellow]"
+            )
+        else:
+            nb_id = result.get("notebook_id", "")
+            console.print(
+                f"\n[dim]Run 'nlm research import {nb_id} <task-id>' to import sources.[/dim]"
+            )
 
 
 @app.command("import")

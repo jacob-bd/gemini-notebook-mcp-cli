@@ -204,7 +204,7 @@ Omit `steering_prompt` to use the element card's description (same as a plain
 | Tool | Description |
 |------|-------------|
 | `research_start` | Start web/Drive research |
-| `research_status` | Poll progress; `import_state` is `not_requested`, `not_attempted`, `confirmed`, or `unconfirmed`. Unconfirmed results carry the stable `import_error=import_unconfirmed` and a reconciliation hint; do **not** retry an uncertain import blindly. Repeated `auto_import=True` polls are **not idempotent** without provider reconciliation. |
+| `research_status` | Poll progress; `import_state` is `not_requested`, `not_attempted`, `confirmed`, `unconfirmed`, or `guard_unavailable`. Unconfirmed results carry the stable `import_error=import_unconfirmed` and a reconciliation hint; do **not** retry an uncertain import blindly. Automatic imports use a durable exclusive local claim keyed by profile, notebook and task: repeated `auto_import=True` polls cannot resubmit the same task from clients sharing that storage. A crash, uncertain provider result or unavailable claim storage fails closed and requires manual reconciliation. This does **not** deduplicate other installations, external clients or explicit `research_import` calls. |
 | `research_import` | Import discovered sources (`timeout` and `cited_only` supported) |
 
 ### Notes (1 unified tool)

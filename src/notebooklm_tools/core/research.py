@@ -377,8 +377,16 @@ class ResearchMixin(BaseClient):
             pre_ids = set()
 
         try:
+            # Import is a non-idempotent mutation. Do not perform automatic
+            # auth-recovery replays after an ambiguous server response.
             result = self._call_rpc(
-                self.RPC_IMPORT_RESEARCH, params, f"/notebook/{notebook_id}", timeout=timeout
+                self.RPC_IMPORT_RESEARCH,
+                params,
+                f"/notebook/{notebook_id}",
+                timeout=timeout,
+                _retry=True,
+                _deep_retry=True,
+                retry_server_errors=False,
             )
         except RPCError as e:
             if e.error_code not in (3, 9):

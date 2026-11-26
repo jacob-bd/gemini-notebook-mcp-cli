@@ -8,6 +8,7 @@ from ..core.client import NotebookLMClient
 from ..core.constants import RESULT_TYPE_DEEP_REPORT
 from ..core.errors import RPCDriftError, RPCError
 from ._compat import TypedDict
+from ._research_import_guard import import_once
 from .errors import ServiceError, ValidationError
 
 VALID_SOURCES = ("web", "drive")
@@ -317,7 +318,8 @@ def poll_research(
         max_wait: Max seconds to wait (default: 0 = single check).
             When > 0, polls repeatedly until status is "completed" or
             the timeout is reached.
-        auto_import: Import the sources automatically once research completes.
+        auto_import: Import at most once per profile/notebook/task via a durable local
+            claim. Missing provider confirmation blocks replay until manual reconciliation.
         no_research_grace: Seconds to keep retrying when the poll comes back empty
             for a known task_id (a task started moments ago may not be visible
             yet). Only applies while blocking (max_wait > 0) with a task_id, and
@@ -399,18 +401,12 @@ def poll_research(
     import_state = "not_requested" if not auto_import else "not_attempted"
     import_error = None
     if auto_import and status == "completed" and completed_task_id:
-        try:
-            import_research(client, notebook_id, completed_task_id)
-            imported = True
-            import_state = "confirmed"
-        except Exception:
-            # The provider may have accepted part or all of the mutation;
-            # a boolean False would incorrectly claim that nothing changed.
-            imported = None
-            import_state = "unconfirmed"
-            # A fixed public code avoids exposing exception messages or
-            # implementation-dependent exception class names.
-            import_error = "import_unconfirmed"
+        imported, import_state, import_error = import_once(
+            client,
+            notebook_id,
+            completed_task_id,
+            lambda: import_research(client, notebook_id, completed_task_id),
+        )
 
     response = {
         "status": status,

@@ -15,6 +15,12 @@ from notebooklm_tools.services.research import (
 )
 
 
+@pytest.fixture(autouse=True)
+def isolated_research_import_claims(tmp_path, monkeypatch):
+    """No test may read or write real profile state while importing."""
+    monkeypatch.setenv("NOTEBOOKLM_MCP_CLI_PATH", str(tmp_path / "storage"))
+
+
 @pytest.fixture
 def mock_client():
     return MagicMock()
@@ -485,6 +491,42 @@ class TestPollResearch:
         assert "private details" not in str(result)
         assert "not confirmed" in result["message"]
         assert "reconcile" in result["next_action"]
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_repeated_completed_poll_is_read_only(self, mock_client):
+        """A repeated poll reuses the prior confirmation without a second import."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-once",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.return_value = [{"title": "A"}]
+
+        first = poll_research(mock_client, "nb-1", auto_import=True)
+        second = poll_research(mock_client, "nb-1", auto_import=True)
+
+        assert first["imported"] is True
+        assert second["imported"] is True
+        assert first["import_state"] == second["import_state"] == "confirmed"
+        mock_client.import_research_sources.assert_called_once()
+
+    def test_auto_import_failed_claim_does_not_replay(self, mock_client):
+        """Unknown provider success must not turn polling into duplicate writes."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-uncertain",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.side_effect = RuntimeError("unknown provider outcome")
+
+        first = poll_research(mock_client, "nb-1", auto_import=True)
+        second = poll_research(mock_client, "nb-1", auto_import=True)
+
+        assert first["imported"] is second["imported"] is None
+        assert first["import_state"] == second["import_state"] == "unconfirmed"
+        assert first["import_error"] == second["import_error"] == "import_unconfirmed"
         mock_client.import_research_sources.assert_called_once()
 
     def test_auto_import_false_does_not_import(self, mock_client):

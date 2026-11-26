@@ -80,6 +80,23 @@ class TestResearchMixinMethods:
 
         assert result == []
 
+    def test_import_rpc_has_no_auth_or_ambiguous_server_replay(self):
+        """An import mutation must not use the generic read-only retry pipeline."""
+        mixin = ResearchMixin(cookies={"test": "cookie"}, csrf_token="test")
+        sources = [{"url": "https://example.org", "title": "Synthetic", "result_type": 1}]
+
+        with (
+            patch.object(mixin, "get_notebook_sources_with_types", return_value=[], create=True),
+            patch.object(mixin, "_call_rpc", return_value=[[]]) as rpc,
+        ):
+            mixin.import_research_sources("notebook-id", "task-id", sources)
+
+        assert rpc.call_count == 1
+        kwargs = rpc.call_args.kwargs
+        assert kwargs["retry_server_errors"] is False
+        assert kwargs["_retry"] is True
+        assert kwargs["_deep_retry"] is True
+
 
 class TestPollResearchMultiTaskFallback:
     """Test Issue #106: poll_research should not return None for multi-task notebooks."""

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.9] - 2026-11-26
+
+### Added
+
+- Notebook details include original URLs for web, YouTube, and URL-backed PDF sources when NotebookLM supplies them. ([#417](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/417))
+- Query citations expose the provider's passage identifier as optional `chunk_id` metadata. The identifier may repeat or change between queries. ([#418](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/418))
+
+### Fixed
+
+- Firefox login closes cookie database handles promptly, avoids blocking on unread browser output, and waits for a force-stopped Firefox process to exit. ([#423](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/423))
+- Cookie import accepts Chrome's Windows “Copy as cURL (cmd)” format while preserving literal carets in other cURL inputs and keeping the hint for cookie-file arguments. ([#416](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/416))
+- Incremental artifact downloads preserve files another download has already published, including exports saved under a PDF filename. ([#420](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/420))
+- Research status reports when an automatic import is unconfirmed. Automatic import requires the original task ID to match the completed provider task. A durable claim prevents repeat attempts within the same local profile and storage directory. ([#419](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/419))
+
+### Changed
+
+- Offline tests use temporary app-data and storage directories. Strict mode detects changes to real profile storage, and authenticated end-to-end tests require an explicit opt-in. ([#422](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/422))
+- GitHub Actions now uses `astral-sh/setup-uv` 10.4.0 for CI, release checks, and publishing. ([#413](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/413))
+
+### Credits
+
+- Thanks to **@FFXFF1** for the Firefox login fix ([#423](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/423)) and **@goranai** for Windows cURL cookie import ([#416](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/416)).
+- Thanks to **@insane66613** for source URLs ([#417](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/417)), citation IDs ([#418](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/418)), research auto-import ([#419](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/419)), download protection ([#420](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/420)), and test isolation ([#422](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/422)).
+
 ## [0.16.8] - 2026-11-25
 
 ### Fixed

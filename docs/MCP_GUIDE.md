@@ -51,7 +51,7 @@ A new profile asks whether to store the login **protected** (OS keystore, recomm
 |------|-------------|
 | `notebook_list` | List all notebooks |
 | `notebook_create` | Create new notebook |
-| `notebook_get` | Get notebook details with sources |
+| `notebook_get` | Get notebook details with sources, including original source URLs when available (otherwise null) |
 | `notebook_describe` | Get AI summary and suggested topics |
 | `notebook_rename` | Rename a notebook |
 | `notebook_delete` | Delete notebook (requires `confirm=True`) |

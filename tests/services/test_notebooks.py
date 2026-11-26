@@ -119,6 +119,38 @@ class TestGetNotebook:
         assert result["sources"][1]["title"] == "Source B"
         assert result["emoji"] == "🧠"
 
+    def test_source_urls_match_core_metadata_parser(self, mock_client):
+        web = [None] * 8
+        web[4] = 5  # NotebookLM web source type; untyped slots are not URL provenance.
+        web[7] = ["https://example.org/article"]
+        youtube = [None] * 8
+        youtube[4] = 9
+        youtube[5] = ["https://youtu.be/example", "example", "Example channel"]
+        mock_client.get_notebook.return_value = [
+            [
+                "Notebook",
+                [
+                    [["web"], "Web", web],
+                    [["video"], "Video", youtube],
+                    [["text"], "Text", []],
+                    [["old"], "Legacy"],
+                    [["invalid"], "Invalid metadata", "not a list"],
+                ],
+                "nb-123",
+            ]
+        ]
+
+        result = get_notebook(mock_client, "nb-123")
+
+        assert [source["url"] for source in result["sources"]] == [
+            "https://example.org/article",
+            "https://youtu.be/example",
+            None,
+            None,
+            None,
+        ]
+        mock_client.get_notebook.assert_called_once_with("nb-123")
+
     def test_dataclass_fallback(self, mock_client):
         mock_client.get_notebook.return_value = _make_notebook(id="nb-42", title="Fallback")
 

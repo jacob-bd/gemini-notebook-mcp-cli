@@ -20,6 +20,7 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Protocol, cast
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -49,19 +50,32 @@ def _drive_file_id(source_type: object, metadata: list[Any]) -> str | None:
     return drive_id if isinstance(drive_id, str) and drive_id else None
 
 
-def _source_url(source_type: object, metadata: list[Any]) -> str | None:
-    """Return a source's URL from its metadata.
+def source_url_from_metadata(source_type: object, metadata: list[Any]) -> str | None:
+    """Return a verified HTTP(S) link from a source-type-specific metadata slot.
 
-    Web sources carry the URL at ``metadata[7][0]``. YouTube sources (type 9) leave
-    that slot empty and carry ``[url, video_id, channel]`` at ``metadata[5]``.
+    Web and URL-backed PDF sources have the URL at ``metadata[7][0]``; YouTube sources use
+    ``metadata[5][0]``. Other source types require independent field-shape
+    evidence before any string can be advertised as an original URL.
     """
-    candidates = [metadata[7] if len(metadata) > 7 else None]
-    if source_type == constants.SOURCE_TYPE_YOUTUBE:
-        candidates.append(metadata[5] if len(metadata) > 5 else None)
-    for info in candidates:
-        if isinstance(info, list) and info and isinstance(info[0], str):
-            return info[0]
-    return None
+    if source_type in (constants.SOURCE_TYPE_WEB_PAGE, constants.SOURCE_TYPE_PDF):
+        info = metadata[7] if len(metadata) > 7 else None
+    elif source_type == constants.SOURCE_TYPE_YOUTUBE:
+        info = metadata[5] if len(metadata) > 5 else None
+    else:
+        return None
+
+    if not isinstance(info, list) or not info or not isinstance(info[0], str):
+        return None
+    candidate = info[0].strip()
+    if not candidate or any(ord(char) <= 32 or ord(char) == 127 for char in candidate):
+        return None
+    try:
+        parsed = urlsplit(candidate)
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        return None
+    return candidate
 
 
 def _resolve_source_type_name(source_type: object, metadata: list[Any]) -> str:
@@ -388,7 +402,7 @@ class SourceMixin(BaseClient):
 
                         # Extract URL (position 7 for web, position 5 for YouTube)
                         url = (
-                            _source_url(source_type, metadata)
+                            source_url_from_metadata(source_type, metadata)
                             if isinstance(metadata, list)
                             else None
                         )
@@ -1131,7 +1145,9 @@ class SourceMixin(BaseClient):
                         type_code = metadata[4]
                         source_type = _resolve_source_type_name(type_code, metadata)
 
-                    url = _source_url(metadata[4] if len(metadata) > 4 else None, metadata)
+                    url = source_url_from_metadata(
+                        metadata[4] if len(metadata) > 4 else None, metadata
+                    )
 
             # Extract content from result[3][0] - array of content blocks
             if len(result) > 3 and isinstance(result[3], list):

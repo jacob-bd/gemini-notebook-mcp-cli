@@ -529,3 +529,129 @@ def test_firefox_headless_auth_raises_when_cookies_invalid_in_diagnostic_mode(mo
     assert firefox.run_headless_auth(profile_name="work") is None
     with pytest.raises(AuthenticationError, match="required NotebookLM cookies"):
         firefox.run_headless_auth(profile_name="work", raise_on_error=True)
+
+
+def test_firefox_read_google_cookies_closes_sqlite_connections_and_releases_file(
+    tmp_path, monkeypatch
+):
+    import shutil
+    import sqlite3
+
+    import pytest
+
+    from notebooklm_tools.utils import firefox
+
+    profile_dir = tmp_path / "firefox-profile"
+    profile_dir.mkdir()
+    cookie_db = profile_dir / "cookies.sqlite"
+    seed = sqlite3.connect(cookie_db)
+    try:
+        seed.execute(
+            "CREATE TABLE moz_cookies ("
+            "name TEXT, value TEXT, host TEXT, path TEXT, expiry INTEGER, isSecure INTEGER, isHttpOnly INTEGER"
+            ")"
+        )
+        seed.execute(
+            "INSERT INTO moz_cookies VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("SID", "sid-val", ".google.com", "/", 9999999999, 1, 1),
+        )
+        seed.execute(
+            "INSERT INTO moz_cookies VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("OTHER", "other-val", ".example.com", "/", 9999999999, 1, 0),
+        )
+        seed.commit()
+    finally:
+        seed.close()
+
+    real_connect = sqlite3.connect
+    opened: list[sqlite3.Connection] = []
+
+    def tracking_connect(*args, **kwargs):
+        conn = real_connect(*args, **kwargs)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(firefox.sqlite3, "connect", tracking_connect)
+
+    try:
+        cookies = firefox._read_google_cookies(profile_dir)
+        assert len(cookies) == 1
+        assert cookies[0]["name"] == "SID"
+        assert len(opened) == 2
+
+        for conn in opened:
+            with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+                conn.execute("SELECT 1")
+
+        # On Windows an unclosed handle to cookies.sqlite blocks profile cleanup.
+        shutil.rmtree(profile_dir)
+        assert not profile_dir.exists()
+    finally:
+        for conn in opened:
+            conn.close()
+
+
+def test_firefox_read_google_cookies_closes_sqlite_connections_on_error(tmp_path, monkeypatch):
+    import sqlite3
+
+    import pytest
+
+    from notebooklm_tools.utils import firefox
+
+    profile_dir = tmp_path / "firefox-bad-db"
+    profile_dir.mkdir()
+    cookie_db = profile_dir / "cookies.sqlite"
+    seed = sqlite3.connect(cookie_db)
+    seed.close()
+
+    real_connect = sqlite3.connect
+    opened: list[sqlite3.Connection] = []
+
+    def tracking_connect(*args, **kwargs):
+        conn = real_connect(*args, **kwargs)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(firefox.sqlite3, "connect", tracking_connect)
+
+    try:
+        assert firefox._read_google_cookies(profile_dir) == []
+        assert len(opened) == 2
+        for conn in opened:
+            with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+                conn.execute("SELECT 1")
+    finally:
+        for conn in opened:
+            conn.close()
+
+
+def test_launch_firefox_uses_devnull_instead_of_unread_pipes(tmp_path, monkeypatch):
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from notebooklm_tools.utils import firefox
+
+    popen_mock = MagicMock()
+    monkeypatch.setattr(firefox.subprocess, "Popen", popen_mock)
+
+    firefox._launch_firefox("/usr/bin/firefox", tmp_path)
+
+    _, kwargs = popen_mock.call_args
+    assert kwargs["stdout"] == subprocess.DEVNULL
+    assert kwargs["stderr"] == subprocess.DEVNULL
+
+
+def test_terminate_firefox_process_reaps_after_kill():
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from notebooklm_tools.utils import firefox
+
+    proc = MagicMock()
+    proc.wait.side_effect = [subprocess.TimeoutExpired(cmd="firefox", timeout=5), 0]
+
+    firefox._terminate_process(proc)
+
+    proc.terminate.assert_called_once()
+    proc.kill.assert_called_once()
+    assert proc.wait.call_count == 2

@@ -71,8 +71,10 @@ def _read_google_cookies(profile_dir: Path) -> list[dict[str, Any]]:
 
     try:
         with (
-            sqlite3.connect(f"{cookie_db.as_uri()}?mode=ro", uri=True) as source,
-            sqlite3.connect(":memory:") as snapshot,
+            contextlib.closing(
+                sqlite3.connect(f"{cookie_db.as_uri()}?mode=ro", uri=True)
+            ) as source,
+            contextlib.closing(sqlite3.connect(":memory:")) as snapshot,
         ):
             source.backup(snapshot)
             rows = snapshot.execute(
@@ -107,8 +109,8 @@ def _launch_firefox(firefox_path: str, profile_dir: Path) -> subprocess.Popen[by
                 str(profile_dir),
                 f"{get_base_url()}/",
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
     except OSError as exc:
         raise AuthenticationError(
@@ -124,6 +126,7 @@ def _terminate_process(process: subprocess.Popen[bytes]) -> None:
         return
     with contextlib.suppress(Exception):
         process.kill()
+        process.wait(timeout=5)
 
 
 def _wait_for_google_cookies(profile_dir: Path, timeout: int) -> list[dict[str, Any]]:

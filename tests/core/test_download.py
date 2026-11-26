@@ -1088,3 +1088,157 @@ def test_download_url_sync_allows_non_login_html_content(tmp_path):
     assert result == str(output)
     assert output.read_bytes() == b"<div>Hello world</div>"
     assert not list(tmp_path.glob(".nlm-download-*.tmp"))
+
+
+class TestFileViewerAuthAndRedirectGuards:
+    """_resolve_file_viewer_url must detect expired auth and untrusted redirects."""
+
+    @staticmethod
+    def _file_artifact(viewer_url: str) -> list:
+        artifact: list = [None] * 25
+        artifact[0] = "file-1"
+        artifact[2] = DownloadMixin.STUDIO_TYPE_DATA_TABLE_XLSX
+        artifact[4] = 3
+        artifact[24] = ["analysis.md", "text/markdown", viewer_url]
+        return artifact
+
+    def test_viewer_login_host_redirect_raises_authentication_error(self, tmp_path):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        mixin._list_raw = Mock(return_value=[self._file_artifact(viewer_url)])
+
+        class LoginRedirectViewerResponse:
+            url = (
+                "https://accounts.google.com/ServiceLogin?continue=https://drive.google.com/viewer"
+            )
+            headers = {"content-type": "text/html; charset=utf-8"}
+            content = b"<!doctype html><html><title>Sign in</title></html>"
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                return LoginRedirectViewerResponse()
+
+        output = tmp_path / "analysis.pdf"
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ClientAuthenticationError, match="Redirected to login page"),
+        ):
+            mixin.download_file("nb-1", str(output), "file-1")
+
+        assert not output.exists()
+
+    def test_viewer_html_login_body_raises_authentication_error(self, tmp_path):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        mixin._list_raw = Mock(return_value=[self._file_artifact(viewer_url)])
+
+        class HtmlLoginResponse:
+            url = viewer_url
+            headers = {"content-type": "text/html; charset=utf-8"}
+            content = b"<!doctype html><html><body>Sign in to Google</body></html>"
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                raise ValueError("Expecting value")
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                return HtmlLoginResponse()
+
+        output = tmp_path / "analysis.pdf"
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ClientAuthenticationError, match="Redirected to login page"),
+        ):
+            mixin.download_file("nb-1", str(output), "file-1")
+
+    @pytest.mark.parametrize("status_code", [401, 403])
+    def test_viewer_http_auth_status_raises_authentication_error(self, tmp_path, status_code):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        mixin._list_raw = Mock(return_value=[self._file_artifact(viewer_url)])
+
+        request = httpx.Request("GET", viewer_url)
+        http_response = httpx.Response(status_code, request=request)
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                return http_response
+
+        output = tmp_path / "analysis.pdf"
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ClientAuthenticationError, match=f"HTTP {status_code}"),
+        ):
+            mixin.download_file("nb-1", str(output), "file-1")
+
+    def test_viewer_untrusted_redirect_host_is_rejected_before_json_parse(self, tmp_path):
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        viewer_url = "https://drive.google.com/viewer/upload?ds=viewer-token"
+        mixin._list_raw = Mock(return_value=[self._file_artifact(viewer_url)])
+
+        class UntrustedRedirectResponse:
+            url = "https://evil.example/viewer.json"
+            headers = {"content-type": "application/json"}
+            content = b'{"pdf": "https://doc-1.googleusercontent.com/file.pdf"}'
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                raise AssertionError("untrusted redirect body must not be parsed")
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return None
+
+            def get(self, url):
+                return UntrustedRedirectResponse()
+
+        output = tmp_path / "analysis.pdf"
+        with (
+            patch("notebooklm_tools.core.download.httpx.Client", FakeClient),
+            pytest.raises(ArtifactParseError, match="trusted Google host"),
+        ):
+            mixin.download_file("nb-1", str(output), "file-1")

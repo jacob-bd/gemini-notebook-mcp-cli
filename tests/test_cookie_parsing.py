@@ -352,3 +352,47 @@ def test_cookie_string_file_with_only_comments_is_rejected(tmp_path):
     cookie_file.write_text("# nothing here\n", encoding="utf-8")
     with pytest.raises(AuthenticationError):
         parse_cookies_from_file(cookie_file)
+
+
+def _windows_curl(argument: str) -> str:
+    """Shape of Chrome's "Copy as cURL (cmd)" export, as DevTools writes it."""
+    return (
+        'curl ^"https://notebooklm.google.com/^" ^\n'
+        '  -H ^"accept: text/html^" ^\n'
+        f"  {argument} ^\n"
+        '  -H ^"user-agent: Mozilla/5.0 ^(Windows NT 10.0^)^"'
+    )
+
+
+def test_parse_windows_curl_inline_cookie_flag(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(_windows_curl('-b ^"SID=abc; HSID=def^"'), encoding="utf-8")
+    assert parse_cookies_from_file(cookie_file) == {"SID": "abc", "HSID": "def"}
+
+
+def test_parse_windows_curl_cookie_header(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(_windows_curl('-H ^"cookie: SID=abc; HSID=def^"'), encoding="utf-8")
+    assert parse_cookies_from_file(cookie_file) == {"SID": "abc", "HSID": "def"}
+
+
+def test_parse_windows_curl_unescapes_percent_and_quote(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(
+        _windows_curl('-b ^"SID=a^%^2Fb; HSID=x^"^"y^"'), encoding="utf-8", newline=""
+    )
+    assert parse_cookies_from_file(cookie_file) == {"SID": "a%2Fb", "HSID": 'x"y'}
+
+
+def test_parse_double_quoted_curl_preserves_trailing_caret(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text('curl "https://example.org/" -b "SID=abc^"', encoding="utf-8")
+    assert parse_cookies_from_file(cookie_file) == {"SID": "abc^"}
+
+
+def test_windows_curl_cookie_file_keeps_actionable_hint(tmp_path):
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text(_windows_curl('-b ^"cookies.txt^"'), encoding="utf-8")
+    with pytest.raises(AuthenticationError) as error:
+        parse_cookies_from_file(cookie_file)
+    assert "points at a cookie file" in error.value.hint

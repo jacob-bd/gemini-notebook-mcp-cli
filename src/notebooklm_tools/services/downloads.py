@@ -750,14 +750,27 @@ async def download_all(
                     slide_deck_format=slide_deck_format,
                 )
                 if staging_dir:
-                    # Publish only if no other writer has claimed the destination.
+                    # A viewer download may rewrite the requested .md/.bin
+                    # output path to .pdf. Publish the file actually created,
+                    # never a guessed path or anything outside our staging dir.
+                    staged = Path(result["path"])
+                    staging_root = Path(staging_dir).resolve(strict=True)
+                    if not staged.is_absolute() or staged.is_symlink():
+                        raise ServiceError("Download returned an unsafe staged output path.")
+                    published_source = staged.resolve(strict=True)
+                    if not published_source.is_file() or published_source.parent != staging_root:
+                        raise ServiceError(
+                            "Download returned an output outside its staging directory."
+                        )
+                    final_path = notebook_dir / published_source.name
+                    # Publish only if no other writer has claimed this actual name.
                     # Windows rename refuses an existing destination; POSIX link
                     # provides the equivalent atomic no-replace operation.
                     try:
                         if os.name == "nt":
-                            os.rename(target, output_path)
+                            os.rename(published_source, final_path)
                         else:
-                            os.link(target, output_path)
+                            os.link(published_source, final_path)
                     except FileExistsError:
                         skipped.append(
                             {
@@ -768,7 +781,8 @@ async def download_all(
                             }
                         )
                         continue
-                    result["path"] = output_path
+                    used_names.add(final_path.name.lower())
+                    result["path"] = str(final_path)
             items.append(
                 {
                     "artifact_id": artifact_id,

@@ -1,5 +1,6 @@
 """Tests for services.downloads module."""
 
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -772,6 +773,149 @@ class TestDownloadAll:
         assert result["skipped"][0]["reason"] == "already downloaded"
         assert destination.read_text(encoding="utf-8") == "other writer"
         assert list(destination.parent.iterdir()) == [destination]
+
+    @pytest.mark.parametrize("filename", ["analysis.md", "analysis.bin"])
+    @pytest.mark.asyncio
+    async def test_skip_existing_publishes_actual_viewer_pdf(
+        self, bulk_client, monkeypatch, tmp_path, filename
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename=filename)],
+        )
+
+        def download_viewer_pdf(notebook_id, output_path, artifact_id):
+            actual = Path(output_path).with_suffix(".pdf")
+            actual.write_bytes(b"%PDF-synthetic")
+            return str(actual)
+
+        bulk_client.download_file.side_effect = download_viewer_pdf
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+
+        expected = tmp_path / "My Notebook" / "analysis.pdf"
+        assert result["downloaded"] == 1
+        assert result["failed"] == 0
+        assert result["skipped"] == []
+        assert result["items"][0]["path"] == str(expected)
+        assert expected.read_bytes() == b"%PDF-synthetic"
+        assert list(expected.parent.iterdir()) == [expected]
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_preserves_actual_pdf_name_collision(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename="analysis.md")],
+        )
+        directory = tmp_path / "My Notebook"
+        directory.mkdir()
+        expected = directory / "analysis.pdf"
+        expected.write_text("other writer", encoding="utf-8")
+
+        def download_viewer_pdf(notebook_id, output_path, artifact_id):
+            actual = Path(output_path).with_suffix(".pdf")
+            actual.write_bytes(b"%PDF-synthetic")
+            return str(actual)
+
+        bulk_client.download_file.side_effect = download_viewer_pdf
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["downloaded"] == 0
+        assert result["failed"] == 0
+        assert len(result["skipped"]) == 1
+        assert expected.read_text(encoding="utf-8") == "other writer"
+        assert list(directory.iterdir()) == [expected]
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_rejects_external_download_result(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename="analysis.md")],
+        )
+        outside = tmp_path / "unrelated.pdf"
+        outside.write_bytes(b"external bytes")
+        bulk_client.download_file.side_effect = lambda nb, output_path, artifact_id: str(outside)
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["downloaded"] == 0
+        assert result["failed"] == 1
+        assert outside.read_bytes() == b"external bytes"
+        assert list((tmp_path / "My Notebook").iterdir()) == []
+
+    @pytest.mark.parametrize("returned_path", ["relative", "missing"])
+    @pytest.mark.asyncio
+    async def test_skip_existing_rejects_invalid_staged_result(
+        self, bulk_client, monkeypatch, tmp_path, returned_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename="analysis.md")],
+        )
+
+        def bad_download(notebook_id, output_path, artifact_id):
+            if returned_path == "relative":
+                return "analysis.pdf"
+            return str(Path(output_path).with_suffix(".pdf"))
+
+        bulk_client.download_file.side_effect = bad_download
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["downloaded"] == 0
+        assert result["failed"] == 1
+        assert result["skipped"] == []
+        assert list((tmp_path / "My Notebook").iterdir()) == []
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_publication_permission_failure(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename="analysis.md")],
+        )
+        bulk_client.download_file.side_effect = _echo_path_sync
+
+        def denied(*args):
+            raise PermissionError("simulated publication denied")
+
+        monkeypatch.setattr(
+            "notebooklm_tools.services.downloads.os." + ("rename" if os.name == "nt" else "link"),
+            denied,
+        )
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["downloaded"] == 0
+        assert result["failed"] == 1
+        assert result["skipped"] == []
+        assert list((tmp_path / "My Notebook").iterdir()) == []
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_preserves_dangling_pdf_symlink(
+        self, bulk_client, monkeypatch, tmp_path
+    ):
+        if os.name == "nt":
+            pytest.skip("POSIX symlink publication test")
+        _patch_lookups(
+            monkeypatch,
+            [_artifact(artifact_id="file-1", type="file", download_filename="analysis.md")],
+        )
+        directory = tmp_path / "My Notebook"
+        directory.mkdir()
+        destination = directory / "analysis.pdf"
+        destination.symlink_to("missing-target.pdf")
+
+        def download_viewer_pdf(notebook_id, output_path, artifact_id):
+            actual = Path(output_path).with_suffix(".pdf")
+            actual.write_bytes(b"%PDF-synthetic")
+            return str(actual)
+
+        bulk_client.download_file.side_effect = download_viewer_pdf
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+        assert result["downloaded"] == 0
+        assert result["failed"] == 0
+        assert len(result["skipped"]) == 1
+        assert destination.is_symlink()
+        assert not destination.exists()
+        assert list(directory.iterdir()) == [destination]
 
     @pytest.mark.asyncio
     async def test_skip_existing_cleans_failed_staging(self, bulk_client, monkeypatch, tmp_path):

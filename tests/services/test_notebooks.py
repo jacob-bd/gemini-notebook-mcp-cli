@@ -121,6 +121,7 @@ class TestGetNotebook:
 
     def test_source_urls_match_core_metadata_parser(self, mock_client):
         web = [None] * 8
+        web[4] = 5  # NotebookLM web source type; untyped slots are not URL provenance.
         web[7] = ["https://example.org/article"]
         youtube = [None] * 8
         youtube[4] = 9

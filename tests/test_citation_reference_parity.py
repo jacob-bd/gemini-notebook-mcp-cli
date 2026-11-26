@@ -45,6 +45,39 @@ def test_chunk_ids_preserve_citation_positions_and_omit_invalid_ids():
     ]
 
 
+def test_opaque_chunk_ids_preserve_duplicates_and_skip_whitespace():
+    data = ConversationMixin._extract_citation_data(
+        [
+            None,
+            None,
+            None,
+            [
+                _passage(["shared-id"], "source-1"),
+                _passage(["shared-id"], "source-1"),
+                _passage(["  "], "source-2"),
+                _passage([" shared-id "], "source-2"),
+                _passage([None], "source-2"),
+            ],
+        ]
+    )
+    assert data["sources_used"] == ["source-1", "source-2"]
+    assert data["citations"] == {
+        1: "source-1",
+        2: "source-1",
+        3: "source-2",
+        4: "source-2",
+        5: "source-2",
+    }
+    assert [ref["citation_number"] for ref in data["references"]] == [1, 2, 3, 4, 5]
+    assert [ref.get("chunk_id") for ref in data["references"]] == [
+        "shared-id",
+        "shared-id",
+        None,
+        "shared-id",
+        None,
+    ]
+
+
 def test_chunk_id_preserved_by_service_cli_and_mcp():
     data = ConversationMixin._extract_citation_data(
         [None, None, None, [_passage(["chunk-a"], "source-1")]]

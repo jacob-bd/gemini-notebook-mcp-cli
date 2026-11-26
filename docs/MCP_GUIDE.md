@@ -101,7 +101,7 @@ source_add(
 
 | Tool | Description |
 |------|-------------|
-| `notebook_query` | Ask AI about sources in notebook; citation references include native chunk IDs when present |
+| `notebook_query` | Ask AI about sources in notebook; citation references may include an opaque provider passage ID in `chunk_id` (not guaranteed unique or stable) |
 | `notebook_query_start` | Start a query asynchronously for source-heavy notebooks or long-running questions |
 | `notebook_query_status` | Poll an async query started with `notebook_query_start` |
 | `chat_configure` | Set chat goal and response length |

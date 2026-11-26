@@ -1057,10 +1057,13 @@ class ConversationMixin(BaseClient):
                         "source_id": source_id,
                         "citation_number": citation_number,
                     }
-                    # Preserve the native passage/chunk identifier when present.
+                    # Preserve the provider's opaque passage identifier, without
+                    # assuming it is unique or stable across future queries.
                     chunk = passage[0]
-                    if isinstance(chunk, list) and chunk and isinstance(chunk[0], str) and chunk[0]:
-                        ref_entry["chunk_id"] = chunk[0]
+                    if isinstance(chunk, list) and chunk and isinstance(chunk[0], str):
+                        opaque_passage_id = chunk[0].strip()
+                        if opaque_passage_id:
+                            ref_entry["chunk_id"] = opaque_passage_id
                     if cited_text:
                         ref_entry["cited_text"] = cited_text
 

@@ -408,12 +408,19 @@ def poll_research(
             imported = None
             import_state = "guard_unavailable"
             import_error = "import_task_identity_required"
-        elif completed_task_id:
+        elif not isinstance(completed_task_id, str) or completed_task_id != task_id:
+            # Core polling can fall back to a different task when the provider
+            # mutates IDs. That fallback is acceptable for display, never for
+            # a non-idempotent import of an unproven task.
+            imported = None
+            import_state = "guard_unavailable"
+            import_error = "import_task_mismatch"
+        else:
             imported, import_state, import_error = import_once(
                 client,
                 notebook_id,
                 task_id,
-                lambda: import_research(client, notebook_id, completed_task_id),
+                lambda: import_research(client, notebook_id, task_id),
             )
 
     response = {
@@ -442,6 +449,12 @@ def poll_research(
             response["next_action"] = (
                 "Pass the original research_start task_id to research_status "
                 "with auto_import=True; check existing notebook sources first."
+            )
+        elif import_error == "import_task_mismatch":
+            response["message"] = "Automatic import blocked: provider task identity changed."
+            response["next_action"] = (
+                "Confirm the original-to-provider research task association before "
+                "using the explicitly requested manual import; do not auto-retry."
             )
         else:
             response["message"] = (

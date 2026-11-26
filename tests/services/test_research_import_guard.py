@@ -139,6 +139,46 @@ def test_unidentified_environment_auth_cannot_auto_import():
     assert not calls
 
 
+def test_unbound_non_environment_profile_fails_closed():
+    client = _Client()
+    client._profile_name = None
+    client._is_env_auth = False
+    sends = []
+    result = guard.import_once(client, "nb", "task", lambda: sends.append(1))
+    assert result == (None, "guard_unavailable", "import_guard_unavailable")
+    assert not sends
+
+
+def test_symlinked_confirmation_cannot_forge_success():
+    client = _Client()
+    path = guard._claim_path(client, "nb", "task")
+    forged = path.parent / "forged.json"
+    forged.write_text('{"state":"confirmed"}', encoding="utf-8")
+    try:
+        path.symlink_to(forged)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlinks not available for this test account")
+    sent = []
+    result = guard.import_once(client, "nb", "task", lambda: sent.append(1))
+    assert result == (None, "unconfirmed", "import_unconfirmed")
+    assert sent == []
+
+
+def test_junction_or_symlink_in_storage_parent_blocks_sends(tmp_path, monkeypatch):
+    target = tmp_path / "real-storage"
+    target.mkdir()
+    linked = tmp_path / "linked-storage"
+    try:
+        linked.symlink_to(target, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Directory links not available for this account")
+    monkeypatch.setattr(guard, "get_storage_dir", lambda: linked)
+    sends = []
+    result = guard.import_once(_Client(), "nb", "task", lambda: sends.append(1))
+    assert result == (None, "guard_unavailable", "import_guard_unavailable")
+    assert sends == []
+
+
 def test_unwritable_claim_location_fails_before_provider_call(monkeypatch):
     def invalid_path(*args):
         raise OSError("storage denied")

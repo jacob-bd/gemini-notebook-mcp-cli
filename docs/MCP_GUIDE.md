@@ -204,7 +204,7 @@ Omit `steering_prompt` to use the element card's description (same as a plain
 | Tool | Description |
 |------|-------------|
 | `research_start` | Start web/Drive research |
-| `research_status` | Poll progress; `import_state` is `not_requested`, `not_attempted`, `confirmed`, `unconfirmed`, or `guard_unavailable`. Unconfirmed results carry the stable `import_error=import_unconfirmed` and a reconciliation hint; do **not** retry an uncertain import blindly. Automatic imports require the original research task ID and use a durable exclusive local claim keyed by profile, notebook and that original task: repeated `auto_import=True` polls cannot resubmit the same task from clients sharing that storage. A crash, uncertain provider result or unavailable claim storage fails closed and requires manual reconciliation. This does **not** deduplicate other installations, external clients or explicit `research_import` calls. |
+| `research_status` | Poll progress; `import_state` is `not_requested`, `not_attempted`, `confirmed`, `unconfirmed`, or `guard_unavailable`. Unconfirmed results carry the stable `import_error=import_unconfirmed` and a reconciliation hint; do **not** retry an uncertain import blindly. Automatic imports require the original research task ID and use a durable exclusive local claim keyed by profile, notebook and that original task: repeated `auto_import=True` polls cannot resubmit the same task from clients sharing that storage. A crash, uncertain provider result or unavailable claim storage fails closed and requires manual reconciliation. This does **not** deduplicate other installations, external clients or explicit `research_import` calls. Provider task-ID mismatches are blocked, not guessed; POSIX parent directories are synced, but Windows power-loss durability still needs native verification. |
 | `research_import` | Import discovered sources (`timeout` and `cited_only` supported) |
 
 ### Notes (1 unified tool)
@@ -360,8 +360,10 @@ tag(action="select", query="ai research")  # Find notebooks by tag match
 ### Research → Podcast
 
 ```
-1. research_start(query="AI trends 2026", mode="deep")
-2. research_status(notebook_id, auto_import=True)  # waits up to 15 min, imports automatically
+1. research_start(query="AI trends 2026", mode="deep")  # retain original task_id
+2. research_status(notebook_id, task_id=original_task_id, auto_import=True)
+# Automatic import fails closed if provider task_id changed or cannot be bound.
+# Verify the task association before any separate manual import.
 # Or review sources first, then import manually:
 2a. research_status(notebook_id)  # waits up to 15 min, returns next_action hint
 2b. research_import(notebook_id, task_id, cited_only=True, timeout=600)  # optional cited subset

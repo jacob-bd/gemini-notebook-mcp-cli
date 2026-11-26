@@ -1,5 +1,6 @@
 """Tests verifying the suite-level storage tripwire behavior using temporary directories."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -106,8 +107,12 @@ def test_tripwire_tolerates_live_modifications(tmp_path: Path):
     assert len(warnings) == 1
     assert "live-modified profiles/work/cookies.json" in warnings[0]
 
-    # Should not raise
-    _evaluate_tripwire(before_cli, after_cli, before_mcp, after_mcp)
+    if os.environ.get("NLM_OFFLINE_STRICT") == "1":
+        # Strict offline runs must reject even normally allowlisted writes.
+        with pytest.raises(pytest.fail.Exception, match="STORAGE TRIPWIRE FAILED"):
+            _evaluate_tripwire(before_cli, after_cli, before_mcp, after_mcp)
+    else:
+        _evaluate_tripwire(before_cli, after_cli, before_mcp, after_mcp)
 
 
 def test_tripwire_fails_on_unapproved_modification(tmp_path: Path):

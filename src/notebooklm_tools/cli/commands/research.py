@@ -148,28 +148,25 @@ def start_research(
                         task_id=result["task_id"],
                         poll_interval=30,
                         max_wait=900,
+                        auto_import=True,
                     )
 
             _display_research_status(poll_res, compact=True)
 
             if poll_res["status"] == "completed":
-                console.print("\n[dim]Importing discovered sources...[/dim]")
-                with get_client(profile) as import_client:
-                    import_res = research_service.import_research(
-                        import_client, notebook_id, poll_res["task_id"]
+                if poll_res.get("import_state") == "confirmed":
+                    console.print("[green]Automatic source import confirmed.[/green]")
+                else:
+                    console.print(
+                        "[yellow]Automatic import unconfirmed or blocked. "
+                        "Reconcile existing sources before any manual retry.[/yellow]"
                     )
-                console.print(f"[green]✓[/green] {import_res['message']}")
-                for src in import_res.get("imported_sources", []):
-                    title = (
-                        src.get("title", "Unknown")
-                        if isinstance(src, dict)
-                        else getattr(src, "title", "Unknown")
-                    )
-                    console.print(f"  • {title}")
+                    raise typer.Exit(1)
             else:
                 console.print(
                     "[yellow]Warning:[/yellow] Could not auto-import. Research may have timed out or failed."
                 )
+                raise typer.Exit(1)
         else:
             estimate = "~30 seconds" if mode == "fast" else "~5 minutes"
             console.print(f"\n[dim]Estimated time: {estimate}[/dim]")

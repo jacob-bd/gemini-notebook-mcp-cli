@@ -318,8 +318,9 @@ def poll_research(
         max_wait: Max seconds to wait (default: 0 = single check).
             When > 0, polls repeatedly until status is "completed" or
             the timeout is reached.
-        auto_import: Import at most once per profile/notebook/task via a durable local
-            claim. Missing provider confirmation blocks replay until manual reconciliation.
+        auto_import: Import at most once per profile/notebook/original task ID via
+            a durable claim. Requires explicit task_id to survive provider ID
+            mutations. Unknown outcomes block replay until reconciliation.
         no_research_grace: Seconds to keep retrying when the poll comes back empty
             for a known task_id (a task started moments ago may not be visible
             yet). Only applies while blocking (max_wait > 0) with a task_id, and
@@ -400,13 +401,20 @@ def poll_research(
     imported: bool | None = False
     import_state = "not_requested" if not auto_import else "not_attempted"
     import_error = None
-    if auto_import and status == "completed" and completed_task_id:
-        imported, import_state, import_error = import_once(
-            client,
-            notebook_id,
-            completed_task_id,
-            lambda: import_research(client, notebook_id, completed_task_id),
-        )
+    if auto_import and status == "completed":
+        # Only the caller's original task ID is stable across deep-research
+        # provider task-ID changes. Never auto-import without that binding.
+        if not isinstance(task_id, str) or not task_id.strip():
+            imported = None
+            import_state = "guard_unavailable"
+            import_error = "import_task_identity_required"
+        elif completed_task_id:
+            imported, import_state, import_error = import_once(
+                client,
+                notebook_id,
+                task_id,
+                lambda: import_research(client, notebook_id, completed_task_id),
+            )
 
     response = {
         "status": status,
@@ -429,11 +437,20 @@ def poll_research(
     }
     if import_error is not None:
         response["import_error"] = import_error
-        response["message"] = "Research completed, but automatic source import was not confirmed."
-        response["next_action"] = (
-            "Check the notebook source list and reconcile existing source IDs "
-            "before manually attempting another import."
-        )
+        if import_error == "import_task_identity_required":
+            response["message"] = "Automatic import skipped: original task ID is required."
+            response["next_action"] = (
+                "Pass the original research_start task_id to research_status "
+                "with auto_import=True; check existing notebook sources first."
+            )
+        else:
+            response["message"] = (
+                "Research completed, but automatic source import was not confirmed."
+            )
+            response["next_action"] = (
+                "Check the notebook source list and reconcile existing source IDs "
+                "before manually attempting another import."
+            )
     return response
 
 

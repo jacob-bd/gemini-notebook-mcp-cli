@@ -204,7 +204,7 @@ Omit `steering_prompt` to use the element card's description (same as a plain
 | Tool | Description |
 |------|-------------|
 | `research_start` | Start web/Drive research |
-| `research_status` | Poll research progress |
+| `research_status` | Poll research progress; with `auto_import=True`, reports `import_error` and a reconciliation hint if importing sources is unconfirmed |
 | `research_import` | Import discovered sources (`timeout` and `cited_only` supported) |
 
 ### Notes (1 unified tool)

@@ -387,14 +387,19 @@ def poll_research(
     completed_task_id = result.get("task_id") if status == "completed" else None
 
     imported = False
+    import_error = None
     if auto_import and status == "completed" and completed_task_id:
         try:
             import_research(client, notebook_id, completed_task_id)
             imported = True
-        except Exception:
-            pass
+        except Exception as exc:
+            # Research itself succeeded; do not lose its task/status record or
+            # blindly replay an import with an uncertain partial outcome.
+            # Do not expose raw provider exceptions, which may contain URLs
+            # or tokens. Preserve a stable, non-sensitive failure category.
+            import_error = type(exc).__name__
 
-    return {
+    response = {
         "status": status,
         "notebook_id": notebook_id,
         "task_id": result.get("task_id"),
@@ -412,6 +417,14 @@ def poll_research(
             else None
         ),
     }
+    if import_error is not None:
+        response["import_error"] = import_error
+        response["message"] = "Research completed, but automatic source import was not confirmed."
+        response["next_action"] = (
+            "Check the notebook source list and reconcile existing source IDs "
+            "before manually attempting another import."
+        )
+    return response
 
 
 def import_research(

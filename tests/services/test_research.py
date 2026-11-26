@@ -464,6 +464,27 @@ class TestPollResearch:
         assert result.get("imported") is True
         mock_client.import_research_sources.assert_called_once()
 
+    def test_auto_import_failure_is_visible_without_retry(self, mock_client):
+        """Completed research must not conceal an uncertain source import."""
+        mock_client.poll_research.return_value = {
+            "status": "completed",
+            "task_id": "task-xyz",
+            "sources": [{"title": "A", "url": "https://example.org"}],
+            "report": "Done",
+        }
+        mock_client.import_research_sources.side_effect = RuntimeError("private details")
+
+        result = poll_research(mock_client, "nb-1", auto_import=True)
+
+        assert result["status"] == "completed"
+        assert result["task_id"] == "task-xyz"
+        assert result["imported"] is False
+        assert "import_error" in result
+        assert "private details" not in result["import_error"]
+        assert "not confirmed" in result["message"]
+        assert "reconcile" in result["next_action"]
+        mock_client.import_research_sources.assert_called_once()
+
     def test_auto_import_false_does_not_import(self, mock_client):
         """auto_import=False (default) never calls import."""
         mock_client.poll_research.return_value = {

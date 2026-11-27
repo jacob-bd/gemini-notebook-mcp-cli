@@ -1199,18 +1199,26 @@ class DownloadMixin(BaseClient):
             or host.endswith(".usercontent.google")
         )
 
-    @staticmethod
-    def _is_auth_redirect_url(url: str) -> bool:
-        """Return True when a final response URL points to Google's sign-in host."""
-        host = (urlparse(url).hostname or "").lower()
-        return host == "accounts.google.com" or host.endswith(".accounts.google.com")
-
     def _resolve_file_viewer_url(self, viewer_url: str) -> tuple[str, str | None]:
         """Resolve a Drive viewer JSON envelope to its downloadable target."""
         if not self._is_trusted_file_export_url(viewer_url):
             raise ArtifactParseError(
                 "file", details="Viewer URL must use HTTPS on a trusted Google host"
             )
+
+        login_message = (
+            "Download failed: Redirected to login page. Run 'nlm login' to refresh credentials."
+        )
+
+        def validate_viewer_request(request: httpx.Request) -> None:
+            # HTTPX calls request hooks before sending the initial request and each redirect.
+            if not self._is_trusted_file_export_url(str(request.url)):
+                raise ArtifactParseError(
+                    "file", details="Viewer redirects must use HTTPS on trusted Google hosts"
+                )
+            host = request.url.host
+            if host == "accounts.google.com" or host.endswith(".accounts.google.com"):
+                raise AuthenticationError(login_message)
 
         base_headers = getattr(
             self,
@@ -1223,42 +1231,20 @@ class DownloadMixin(BaseClient):
                 cookies=self._get_httpx_cookies(),
                 headers=base_headers,
                 follow_redirects=True,
+                event_hooks={"request": [validate_viewer_request]},
                 timeout=timeout,
             ) as client:
                 response = client.get(viewer_url)
-                final_url = str(getattr(response, "url", "") or "")
-                if final_url and self._is_auth_redirect_url(final_url):
+                if response.status_code == 401:
                     raise AuthenticationError(
-                        "Download failed: Redirected to login page. "
-                        "Run 'nlm login' to refresh credentials."
+                        "Download failed with HTTP 401. Run 'nlm login' to refresh credentials."
                     )
-                if final_url and not self._is_trusted_file_export_url(final_url):
-                    raise ArtifactParseError(
-                        "file",
-                        details="Viewer redirect must stay on HTTPS on a trusted Google host",
-                    )
+                if "text/html" in response.headers.get("content-type", "").lower():
+                    html = response.content[:8192].lower()
+                    if b"sign in to google" in html or b"accounts.google.com/servicelogin" in html:
+                        raise AuthenticationError(login_message)
                 response.raise_for_status()
-                headers = getattr(response, "headers", None)
-                content_type = (
-                    headers.get("content-type", "").lower() if hasattr(headers, "get") else ""
-                )
-                if "text/html" in content_type and self._is_html_login_redirect(
-                    getattr(response, "content", b"")[:8192]
-                ):
-                    raise AuthenticationError(
-                        "Download failed: Redirected to login page. "
-                        "Run 'nlm login' to refresh credentials."
-                    )
                 payload = response.json()
-        except AuthenticationError:
-            raise
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code in (401, 403):
-                raise AuthenticationError(
-                    f"Download failed with HTTP {e.response.status_code}. "
-                    "Run 'nlm login' to refresh credentials."
-                ) from e
-            raise ArtifactParseError("file", details=f"Invalid viewer response: {e}") from e
         except (httpx.HTTPError, ValueError, TypeError) as e:
             raise ArtifactParseError("file", details=f"Invalid viewer response: {e}") from e
 

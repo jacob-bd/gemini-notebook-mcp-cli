@@ -1206,6 +1206,20 @@ class DownloadMixin(BaseClient):
                 "file", details="Viewer URL must use HTTPS on a trusted Google host"
             )
 
+        login_message = (
+            "Download failed: Redirected to login page. Run 'nlm login' to refresh credentials."
+        )
+
+        def validate_viewer_request(request: httpx.Request) -> None:
+            # HTTPX calls request hooks before sending the initial request and each redirect.
+            if not self._is_trusted_file_export_url(str(request.url)):
+                raise ArtifactParseError(
+                    "file", details="Viewer redirects must use HTTPS on trusted Google hosts"
+                )
+            host = request.url.host
+            if host == "accounts.google.com" or host.endswith(".accounts.google.com"):
+                raise AuthenticationError(login_message)
+
         base_headers = getattr(
             self,
             "_PAGE_FETCH_HEADERS",
@@ -1217,9 +1231,18 @@ class DownloadMixin(BaseClient):
                 cookies=self._get_httpx_cookies(),
                 headers=base_headers,
                 follow_redirects=True,
+                event_hooks={"request": [validate_viewer_request]},
                 timeout=timeout,
             ) as client:
                 response = client.get(viewer_url)
+                if response.status_code == 401:
+                    raise AuthenticationError(
+                        "Download failed with HTTP 401. Run 'nlm login' to refresh credentials."
+                    )
+                if "text/html" in response.headers.get("content-type", "").lower():
+                    html = response.content[:8192].lower()
+                    if b"sign in to google" in html or b"accounts.google.com/servicelogin" in html:
+                        raise AuthenticationError(login_message)
                 response.raise_for_status()
                 payload = response.json()
         except (httpx.HTTPError, ValueError, TypeError) as e:

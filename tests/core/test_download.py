@@ -312,6 +312,9 @@ class TestDownloadMixinMethods:
         requested_urls: list[str] = []
 
         class ViewerResponse:
+            status_code = 200
+            headers = {}
+
             def raise_for_status(self):
                 return None
 
@@ -369,6 +372,9 @@ class TestDownloadMixinMethods:
         )
 
         class ViewerResponse:
+            status_code = 200
+            headers = {}
+
             def raise_for_status(self):
                 return None
 
@@ -1088,3 +1094,96 @@ def test_download_url_sync_allows_non_login_html_content(tmp_path):
     assert result == str(output)
     assert output.read_bytes() == b"<div>Hello world</div>"
     assert not list(tmp_path.glob(".nlm-download-*.tmp"))
+
+
+class TestFileViewerAuthAndRedirectGuards:
+    viewer_url = "https://drive.google.com/viewer/upload"
+    sign_in_url = "https://accounts.google.com/ServiceLogin"
+    pdf_url = "https://doc-1.googleusercontent.com/file.pdf"
+
+    @pytest.fixture
+    def viewer(self, monkeypatch):
+        client_class = httpx.Client
+        mixin = DownloadMixin(cookies={"SID": "cookie"}, csrf_token="test")
+        artifact = [None] * 25
+        artifact[0] = "file-1"
+        artifact[2] = DownloadMixin.STUDIO_TYPE_DATA_TABLE_XLSX
+        artifact[4] = 3
+        artifact[24] = ["analysis.md", "text/markdown", self.viewer_url]
+        mixin._list_raw = Mock(return_value=[artifact])
+
+        def install_transport(handler):
+            transport = httpx.MockTransport(handler)
+            monkeypatch.setattr(
+                httpx, "Client", lambda **kwargs: client_class(transport=transport, **kwargs)
+            )
+
+        return mixin, install_transport
+
+    def test_sign_in_redirect_is_reported_without_loading_sign_in_page(self, viewer, tmp_path):
+        mixin, install_transport = viewer
+        requested = []
+
+        def respond(request):
+            requested.append(str(request.url))
+            if request.url == self.viewer_url:
+                return httpx.Response(302, headers={"location": self.sign_in_url})
+            return httpx.Response(200, json={})
+
+        install_transport(respond)
+        output = tmp_path / "analysis.pdf"
+        with pytest.raises(ClientAuthenticationError, match="Redirected to login page"):
+            mixin.download_file("nb-1", str(output), "file-1")
+
+        assert requested == [self.viewer_url]
+        assert not output.exists()
+
+    def test_trusted_relative_redirect_resolves_envelope_and_downloads(self, viewer, tmp_path):
+        mixin, install_transport = viewer
+        responses = {
+            self.viewer_url: httpx.Response(302, headers={"location": "/viewer/result"}),
+            "https://drive.google.com/viewer/result": httpx.Response(
+                200, json={"pdf": self.pdf_url}
+            ),
+            self.pdf_url: httpx.Response(200, content=b"%PDF-1.7"),
+        }
+        install_transport(lambda request: responses[str(request.url)])
+        output = tmp_path / "analysis.bin"
+
+        assert mixin.download_file("nb-1", str(output), "file-1") == str(output.with_suffix(".pdf"))
+        assert output.with_suffix(".pdf").read_bytes() == b"%PDF-1.7"
+
+    @pytest.mark.parametrize("status", [200, 403])
+    def test_google_login_html_is_reported_as_authentication_error(self, viewer, tmp_path, status):
+        mixin, install_transport = viewer
+        install_transport(
+            lambda request: httpx.Response(
+                status,
+                headers={"content-type": "text/html; charset=utf-8"},
+                content=b"<!doctype html><html><title>Sign in to Google</title></html>",
+            )
+        )
+
+        with pytest.raises(ClientAuthenticationError, match="Redirected to login page"):
+            mixin.download_file("nb-1", str(tmp_path / "analysis.pdf"), "file-1")
+
+    @pytest.mark.parametrize("status", [200, 403])
+    def test_generic_viewer_html_is_reported_as_parse_error(self, viewer, tmp_path, status):
+        mixin, install_transport = viewer
+        install_transport(
+            lambda request: httpx.Response(
+                status,
+                headers={"content-type": "text/html"},
+                content=b"<!doctype html><html><title>Viewer unavailable</title></html>",
+            )
+        )
+
+        with pytest.raises(ArtifactParseError):
+            mixin.download_file("nb-1", str(tmp_path / "analysis.pdf"), "file-1")
+
+    def test_http_401_is_reported_as_authentication_error(self, viewer, tmp_path):
+        mixin, install_transport = viewer
+        install_transport(lambda request: httpx.Response(401))
+
+        with pytest.raises(ClientAuthenticationError, match="HTTP 401"):
+            mixin.download_file("nb-1", str(tmp_path / "analysis.pdf"), "file-1")

@@ -1,6 +1,5 @@
 """Every CLI command maps to an MCP tool or is deliberately CLI-only."""
 
-import click
 import typer
 
 from notebooklm_tools.cli.main import app
@@ -182,7 +181,8 @@ def _cli_commands() -> set[str]:
     out: set[str] = set()
 
     def walk(cmd, path):
-        if isinstance(cmd, click.Group):
+        # Typer 0.29+ bundles its own click, so click.Group no longer matches.
+        if hasattr(cmd, "commands"):
             if path and cmd.invoke_without_command and cmd.callback:
                 out.add(" ".join(path))
             for name, sub in cmd.commands.items():

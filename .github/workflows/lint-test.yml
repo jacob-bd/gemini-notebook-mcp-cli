@@ -42,5 +42,5 @@ jobs:
       - name: Run tests with pytest
         run: uv run --dev --with pytest-github-actions-annotate-failures --with pytest-asyncio pytest -v --tb=short -m "not e2e"
 
-      - name: Run login prompt tests against the newest Typer
-        run: uv run --dev --with 'typer>=0.29,<1.0' pytest tests/cli/test_login_storage_choice.py -v --tb=short
+      - name: Run login prompt and CLI/MCP parity tests against the newest Typer
+        run: uv run --dev --with 'typer>=0.29,<1.0' pytest tests/cli/test_login_storage_choice.py tests/test_mcp_cli_parity.py -v --tb=short

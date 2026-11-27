@@ -869,7 +869,7 @@ wheels = [
 
 [[package]]
 name = "notebooklm-mcp-cli"
-version = "0.16.9"
+version = "0.16.10"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.10] - 2026-11-27
+
+### Fixed
+
+- Drive viewer downloads prompt users to sign in again when Google returns a sign-in response or HTTP 401. Other viewer errors retain the download failure message. Each viewer redirect is checked against the trusted HTTPS Google hosts before the request is sent. ([#425](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/425))
+- CLI/MCP parity checks recognize command groups on Typer 0.29. The CI job for newer Typer runs the parity checks alongside the login prompt tests. ([#426](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/426), [#427](https://github.com/jacob-bd/gemini-notebook-mcp-cli/pull/427))
+
+### Credits
+
+- Thanks to **@FFXFF1** for the Drive viewer download fix and **@goranai** for the Typer parity fix.
+
 ## [0.16.9] - 2026-11-26
 
 ### Added

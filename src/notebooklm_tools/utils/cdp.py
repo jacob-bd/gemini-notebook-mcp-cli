@@ -16,6 +16,7 @@ import platform
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -134,19 +135,47 @@ def _cdp_http_base(port: int) -> str:
     return f"http://127.0.0.1:{port}"
 
 
+_STARTUP_STDERR_TAIL_BYTES = 65536
+
+
+def _close_process_streams(process: subprocess.Popen | None) -> None:
+    """Close any stdio pipes or temporary stderr capture file attached to a process."""
+    if process is None:
+        return
+    for attr in ("stdout", "stderr", "_nlm_stderr_file"):
+        stream = getattr(process, attr, None)
+        if stream is not None:
+            with contextlib.suppress(Exception):
+                stream.close()
+            if attr == "_nlm_stderr_file":
+                with contextlib.suppress(Exception):
+                    process._nlm_stderr_file = None  # type: ignore[attr-defined]
+
+
 def _summarize_browser_startup_failure(process: subprocess.Popen | None) -> str | None:
     """Best-effort summary when the launched browser exits before CDP is ready."""
     if process is None or process.poll() is None:
         return None
 
     exit_code = process.poll()
-    if process.stderr is None:
+    stderr_file = getattr(process, "_nlm_stderr_file", None)
+    if stderr_file is None and process.stderr is None:
         return f"Process exited with code {exit_code}"
 
     try:
-        stderr = process.stderr.read().decode("utf-8", errors="replace").strip()
+        if stderr_file is not None:
+            stderr_file.seek(0, os.SEEK_END)
+            size = stderr_file.tell()
+            stderr_file.seek(max(0, size - _STARTUP_STDERR_TAIL_BYTES))
+            raw_stderr = stderr_file.read()
+        else:
+            raw_stderr = process.stderr.read()
+        stderr = raw_stderr.decode("utf-8", errors="replace").strip()
     except Exception:
         return f"Process exited with code {exit_code}"
+    finally:
+        if stderr_file is not None:
+            _close_process_streams(process)
 
     if not stderr:
         return f"Process exited with code {exit_code}"
@@ -983,9 +1012,19 @@ def launch_chrome_process(
     if headless:
         args.append("--headless=new")
 
+    # Never attach unread PIPEs to Chrome: noisy stdout/stderr can fill the OS
+    # pipe buffer and deadlock the browser, and inherited stderr pipes can hang
+    # startup-failure reads after a launcher handoff. Capture stderr in a temp
+    # file so startup diagnostics remain available without blocking.
+    stderr_file = None
+    try:
+        stderr_file = tempfile.TemporaryFile()  # noqa: SIM115
+    except OSError:
+        stderr_file = None
+
     kwargs: dict[str, Any] = {
-        "stdout": subprocess.PIPE,
-        "stderr": subprocess.PIPE,
+        "stdout": subprocess.DEVNULL,
+        "stderr": stderr_file if stderr_file is not None else subprocess.DEVNULL,
     }
 
     if platform.system() == "Windows":
@@ -994,8 +1033,13 @@ def launch_chrome_process(
     try:
         _logger.debug("Launching browser: %s on port %d", chrome_path, port)
         process = subprocess.Popen(args, **kwargs)
+        if stderr_file is not None:
+            process._nlm_stderr_file = stderr_file  # type: ignore[attr-defined]
         return process
     except Exception as e:
+        if stderr_file is not None:
+            with contextlib.suppress(Exception):
+                stderr_file.close()
         _logger.error(
             "Failed to launch browser at '%s' on port %d: %s",
             chrome_path,
@@ -1060,6 +1104,10 @@ def terminate_chrome(process: subprocess.Popen | None = None, port: int | None =
         except Exception:
             with contextlib.suppress(Exception):
                 process.kill()
+            with contextlib.suppress(Exception):
+                process.wait(timeout=5)
+    finally:
+        _close_process_streams(process)
 
     # Clean up port map
     effective_port = port or _chrome_port
